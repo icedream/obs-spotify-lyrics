@@ -2,13 +2,14 @@ package main
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"syscall"
 
+	"github.com/icedream/spotify-lyrics-widget/internal/browser"
 	"github.com/icedream/spotify-lyrics-widget/internal/spotify"
 	"github.com/kirsle/configdir"
 	"github.com/stoewer/go-strcase"
@@ -30,10 +31,6 @@ var configPath string
 
 func init() {
 	configPath = configdir.LocalConfig(appName)
-	// err := configdir.MakePath(configPath) // Ensure it exists.
-	// if err != nil {
-	// 	panic(err)
-	// }
 }
 
 func getFlagSources(flagName string) cli.ValueSourceChain {
@@ -51,7 +48,13 @@ func getFlagSources(flagName string) cli.ValueSourceChain {
 func buildClient(c *cli.Command) (*spotify.Client, error) {
 	spDC := c.String(flagSpotifyCookie)
 	if len(spDC) == 0 {
-		return nil, errors.New("must set sp_dc cookie, check https://github.com/akashrchandran/syrics/wiki/Finding-sp_dc")
+		log.Println("No sp_dc cookie configured, searching installed browsers...")
+		var err error
+		spDC, err = browser.FindCookie("sp_dc", ".spotify.com")
+		if err != nil {
+			return nil, fmt.Errorf("sp_dc cookie not configured and auto-discovery failed: %w", err)
+		}
+		log.Println("Found sp_dc cookie in browser.")
 	}
 
 	deviceID := c.String(flagSpotifyDeviceID)
@@ -67,10 +70,9 @@ func run() (exitCode int) {
 	var (
 		flags = []cli.Flag{
 			&cli.StringFlag{
-				Name:     flagSpotifyCookie,
-				Usage:    "sp_dc cookie",
-				Required: true,
-				Sources:  getFlagSources(flagSpotifyCookie),
+				Name:    flagSpotifyCookie,
+				Usage:   "sp_dc cookie (auto-discovered from browsers if not set)",
+				Sources: getFlagSources(flagSpotifyCookie),
 			},
 			&cli.StringFlag{
 				Name:    flagSpotifyDeviceID,
