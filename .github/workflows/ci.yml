@@ -17,10 +17,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-go@v5
         with:
           go-version-file: 'go.mod'
-      - run: go build ./cmd/lyrics/
+      - run: go build -ldflags "-X main.version=$(git describe --always --tags)" ./cmd/lyrics/
   lint:
     runs-on: ubuntu-latest
     steps:
