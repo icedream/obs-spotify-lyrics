@@ -20,6 +20,9 @@ import (
 
 const appName = "spotify-lyrics"
 
+// version is set at build time via -ldflags "-X main.version=…".
+var version = "dev"
+
 const (
 	flagSpotifyCookie   = "spotify-cookie"
 	flagSpotifyDeviceID = "spotify-device-id"
@@ -68,6 +71,7 @@ func main() {
 }
 
 func run() (exitCode int) {
+	log.Printf("Spotify lyrics server %s", version)
 	var (
 		flags = []cli.Flag{
 			&cli.StringFlag{
@@ -85,6 +89,7 @@ func run() (exitCode int) {
 		c = &cli.Command{
 			Name:           "lyrics",
 			Copyright:      "2026 Carl Kittelberger",
+			Version:        version,
 			Flags:          flags,
 			DefaultCommand: "serve",
 			Commands: []*cli.Command{
