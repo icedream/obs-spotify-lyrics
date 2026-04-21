@@ -9,9 +9,9 @@ import (
 
 // hub tracks all connected WebSocket clients and broadcasts state to them.
 type hub struct {
-	mu      sync.Mutex
-	clients map[*wsClient]struct{}
-	last    []byte // most recent broadcast, sent to newly connecting clients
+	mu         sync.Mutex
+	clients    map[*wsClient]struct{}
+	snapshotFn func() []byte // called for each new client to get a fresh state snapshot
 }
 
 func newHub() *hub {
@@ -21,13 +21,16 @@ func newHub() *hub {
 func (h *hub) subscribe(c *wsClient) {
 	h.mu.Lock()
 	h.clients[c] = struct{}{}
-	last := h.last
+	snapshotFn := h.snapshotFn
 	h.mu.Unlock()
-	// Immediately send the current state so the widget doesn't start blank.
-	if last != nil {
-		select {
-		case c.send <- last:
-		default:
+	// Send a fresh snapshot so the widget syncs to the current playback position
+	// rather than the (potentially stale) position from the last broadcast.
+	if snapshotFn != nil {
+		if snap := snapshotFn(); snap != nil {
+			select {
+			case c.send <- snap:
+			default:
+			}
 		}
 	}
 }
@@ -46,7 +49,6 @@ func (h *hub) unsubscribe(c *wsClient) {
 
 func (h *hub) broadcast(payload []byte) {
 	h.mu.Lock()
-	h.last = payload
 	// Snapshot the client list under the lock so sends happen outside it.
 	clients := make([]*wsClient, 0, len(h.clients))
 	for c := range h.clients {
