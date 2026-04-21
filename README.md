@@ -9,10 +9,10 @@ playing Spotify track.
 
 ## Requirements
 
-If you want to use the OBS plugin's source, install a compatible OBS version.
-On Linux, make sure your OBS does ship with the Browser source!
+If you want to use the OBS plugin's source, install a compatible **OBS Studio**
+version. On Linux, make sure your OBS does ship **with the Browser source**!
 
-Make sure you're logged in to Spotify through one of these browsers for
+Make sure you're **logged in to Spotify through one of these browsers** for
 auto-detection of the Spotify token to work:
 
 - Firefox
@@ -22,11 +22,11 @@ auto-detection of the Spotify token to work:
 - Brave
 - Opera (normal or GX)
 
-Login through the official Spotify app is *not* supported.
+**Login through the official Spotify app is *not* supported.**
 
 ## Installation
 
-[Grab the latest release from here!](https://github.com/icedream/obs-spotify-lyrics/releases)
+**[Grab the latest release from here!](https://github.com/icedream/obs-spotify-lyrics/releases)**
 
 People wanting to get an out-of-the-box working experience can just grab the
 OBS plugin for their respective platform.
@@ -76,7 +76,7 @@ logged in to Spotify.
 If the auto-detection fails, a message box will remind you to insert the cookie
 yourself. For instructions on how to find it, see
 https://github.com/akashrchandran/syrics/wiki/Finding-sp_dc. Insert the value
-into Tools → Spotify Lyrics → sp_dc cookie.
+into *Tools* → *Spotify Lyrics* → *sp_dc cookie*.
 
 ### Webserver
 
@@ -86,9 +86,9 @@ uses any free port. You won't need to adjust this unless you decide to roll your
 own HTML/JavaScript that needs to access the WebSocket and needs a predictable
 port.
 
-You can set the webserver port in Tools → Spotify Lyrics → Port.
+You can set the webserver port in *Tools* → *Spotify Lyrics* → *Port*.
 
 The webserver can also be run as a separate application, completely detached
 from OBS, if so desired. If you choose to do so and still want to use the
-"Spotify Lyrics" source with it, you can select to use "External server" and
-provide the URL to it here.
+*Spotify Lyrics* source with it, you can select *External server* and provide
+the URL to it here.
