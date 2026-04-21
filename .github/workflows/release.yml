@@ -13,7 +13,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
 
@@ -35,9 +35,21 @@ jobs:
             -o lyrics-windows-amd64.exe \
             ./cmd/lyrics/
 
+      - name: Install libobs-dev
+        run: sudo apt-get install -y libobs-dev
+
+      - name: Build OBS plugin (Linux amd64)
+        run: |
+          CGO_CFLAGS="-I/usr/include/obs" CGO_LDFLAGS="-lobs" \
+            go build -buildmode=c-shared \
+            -ldflags "-X main.pluginVersion=${{ steps.version.outputs.version }}" \
+            -o spotify-lyrics-linux-amd64.so \
+            ./plugin/
+
       - name: Create release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             lyrics-linux-amd64
             lyrics-windows-amd64.exe
+            spotify-lyrics-linux-amd64.so
