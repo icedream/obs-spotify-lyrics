@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	_ "embed"
 	"errors"
 	"fmt"
 	"log"
@@ -12,12 +11,8 @@ import (
 	cli "github.com/urfave/cli/v3"
 
 	"github.com/icedream/spotify-lyrics-widget/internal/api"
+	"github.com/icedream/spotify-lyrics-widget/internal/widget"
 )
-
-// widgetHTML is an example OBS browser-source widget that renders live lyrics.
-//
-//go:embed static/widget.html
-var widgetHTML []byte
 
 func serve(ctx context.Context, c *cli.Command) error {
 	client, err := buildClient(c)
@@ -36,7 +31,7 @@ func serve(ctx context.Context, c *cli.Command) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = w.Write(widgetHTML)
+		_, _ = w.Write(widget.HTML)
 	})
 	mux.Handle("/ws", srv.Handler(ctx))
 
