@@ -14,6 +14,11 @@ import (
 	"github.com/icedream/spotify-lyrics-widget/internal/api"
 )
 
+// widgetHTML is an example OBS browser-source widget that renders live lyrics.
+//
+//go:embed static/widget.html
+var widgetHTML []byte
+
 func serve(ctx context.Context, c *cli.Command) error {
 	client, err := buildClient(c)
 	if err != nil {
@@ -29,6 +34,10 @@ func serve(ctx context.Context, c *cli.Command) error {
 	srv := api.NewServer(client)
 
 	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = w.Write(widgetHTML)
+	})
 	mux.Handle("/ws", srv.Handler(ctx))
 
 	httpSrv := &http.Server{Addr: addr, Handler: mux}
@@ -43,6 +52,7 @@ func serve(ctx context.Context, c *cli.Command) error {
 	}
 
 	log.Printf("Lyrics server listening on http://%s/", l.Addr())
+	log.Printf("In OBS: add a Browser Source → URL: http://%s/  (enable transparency)", l.Addr())
 
 	if err := httpSrv.Serve(l); !errors.Is(err, http.ErrServerClosed) {
 		return err
