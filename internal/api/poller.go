@@ -206,6 +206,10 @@ func (p *poller) fetchAndBroadcastLyrics(ctx context.Context, trackID string) {
 		return
 	}
 	p.lyricsFetched = true
+	var trackDurationMs int64
+	if p.currentTrack != nil {
+		trackDurationMs = p.currentTrack.DurationMs
+	}
 	p.mu.Unlock()
 
 	lyricsResp, err := p.client.Lyrics(ctx, trackID)
@@ -213,10 +217,34 @@ func (p *poller) fetchAndBroadcastLyrics(ctx context.Context, trackID string) {
 		return // lyrics not available for this track, widget stays blank
 	}
 
-	lines := make([]lyricLine, 0, len(lyricsResp.Lyrics.Lines))
-	for _, l := range lyricsResp.Lyrics.Lines {
-		startMs, _ := strconv.ParseInt(l.StartTimeMs, 10, 64)
-		lines = append(lines, lyricLine{StartMs: startMs, Words: l.Words})
+	// Parse all lines so we can use their start times as end-time
+	// boundaries for the preceding lyric line.
+	type rawLine struct {
+		startMs int64
+		endMs   int64
+		words   string
+	}
+	raw := make([]rawLine, len(lyricsResp.Lyrics.Lines))
+	for i, l := range lyricsResp.Lyrics.Lines {
+		raw[i].startMs, _ = strconv.ParseInt(l.StartTimeMs, 10, 64)
+		raw[i].endMs, _ = strconv.ParseInt(l.EndTimeMs, 10, 64)
+		raw[i].words = l.Words
+	}
+
+	// Fill in missing end times: use the next line's start time (this matches
+	// how Spotify's own player determines when each line ends).
+	for i := 0; i < len(raw)-1; i++ {
+		if raw[i].endMs == 0 {
+			raw[i].endMs = raw[i+1].startMs
+		}
+	}
+	if len(raw) > 0 && raw[len(raw)-1].endMs == 0 {
+		raw[len(raw)-1].endMs = trackDurationMs
+	}
+
+	lines := make([]lyricLine, len(raw))
+	for i, l := range raw {
+		lines[i] = lyricLine{StartMs: l.startMs, EndMs: l.endMs, Words: l.words}
 	}
 
 	p.mu.Lock()

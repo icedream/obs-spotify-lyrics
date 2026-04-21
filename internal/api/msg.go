@@ -18,6 +18,7 @@ type msg struct {
 // lyricLine is a single lyric line with its start timestamp in milliseconds.
 type lyricLine struct {
 	StartMs int64  `json:"start_ms"`
+	EndMs   int64  `json:"end_ms,omitempty"`
 	Words   string `json:"words"`
 }
 
