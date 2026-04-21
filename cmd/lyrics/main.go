@@ -23,6 +23,7 @@ const appName = "spotify-lyrics"
 const (
 	flagSpotifyCookie   = "spotify-cookie"
 	flagSpotifyDeviceID = "spotify-device-id"
+	flagAddr            = "addr"
 
 	argTrackID = "track-id"
 )
@@ -82,10 +83,24 @@ func run() (exitCode int) {
 		}
 
 		c = &cli.Command{
-			Name:      "lyrics",
-			Copyright: "2026 Carl Kittelberger",
-			Flags:     flags,
+			Name:           "lyrics",
+			Copyright:      "2026 Carl Kittelberger",
+			Flags:          flags,
+			DefaultCommand: "serve",
 			Commands: []*cli.Command{
+				{
+					Name:        "serve",
+					Description: "Starts the OBS lyrics widget server",
+					Flags: []cli.Flag{
+						&cli.StringFlag{
+							Name:    flagAddr,
+							Usage:   "address to listen on",
+							Value:   "localhost:8080",
+							Sources: getFlagSources(flagAddr),
+						},
+					},
+					Action: serve,
+				},
 				{
 					Name:        "current",
 					Description: "Displays the currently playing song metadata",
