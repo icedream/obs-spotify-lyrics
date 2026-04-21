@@ -206,6 +206,10 @@ func (p *poller) fetchAndBroadcastLyrics(ctx context.Context, trackID string) {
 		return
 	}
 	p.lyricsFetched = true
+	var trackDurationMs int64
+	if p.currentTrack != nil {
+		trackDurationMs = p.currentTrack.DurationMs
+	}
 	p.mu.Unlock()
 
 	lyricsResp, err := p.client.Lyrics(ctx, trackID)
@@ -213,14 +217,39 @@ func (p *poller) fetchAndBroadcastLyrics(ctx context.Context, trackID string) {
 		return // lyrics not available for this track, widget stays blank
 	}
 
-	lines := make([]lyricLine, 0, len(lyricsResp.Lyrics.Lines))
-	for _, l := range lyricsResp.Lyrics.Lines {
-		startMs, _ := strconv.ParseInt(l.StartTimeMs, 10, 64)
-		// Skip empty lines and bare music-note placeholders.
-		if l.Words == "" || l.Words == "♪" {
+	// Parse all lines first (including filtered ones) so we can use their start
+	// times as end-time boundaries for the preceding real lyric line.
+	type rawLine struct {
+		startMs int64
+		endMs   int64
+		words   string
+	}
+	raw := make([]rawLine, len(lyricsResp.Lyrics.Lines))
+	for i, l := range lyricsResp.Lyrics.Lines {
+		raw[i].startMs, _ = strconv.ParseInt(l.StartTimeMs, 10, 64)
+		raw[i].endMs, _ = strconv.ParseInt(l.EndTimeMs, 10, 64)
+		raw[i].words = l.Words
+	}
+
+	// Fill in missing end times: use the next line's start time (this matches
+	// how Spotify's own player determines when each line ends, and importantly
+	// gives the correct boundary even when the next line is a filtered ♪ entry).
+	for i := 0; i < len(raw)-1; i++ {
+		if raw[i].endMs == 0 {
+			raw[i].endMs = raw[i+1].startMs
+		}
+	}
+	if len(raw) > 0 && raw[len(raw)-1].endMs == 0 {
+		raw[len(raw)-1].endMs = trackDurationMs
+	}
+
+	// Second pass: collect real lyric lines (skip empty and music-note placeholders).
+	lines := make([]lyricLine, 0, len(raw))
+	for _, l := range raw {
+		if l.words == "" || l.words == "♪" {
 			continue
 		}
-		lines = append(lines, lyricLine{StartMs: startMs, Words: l.Words})
+		lines = append(lines, lyricLine{StartMs: l.startMs, EndMs: l.endMs, Words: l.words})
 	}
 
 	p.mu.Lock()
