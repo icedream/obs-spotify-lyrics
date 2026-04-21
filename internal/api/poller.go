@@ -77,6 +77,25 @@ func (p *poller) broadcastPlaying() {
 	p.hub.broadcast(data)
 }
 
+// snapshot returns a fresh JSON message reflecting the current playback state,
+// with position_ms estimated up to the current moment. Called for each new
+// WebSocket client so they join in sync rather than at the last-broadcast position.
+func (p *poller) snapshot() []byte {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.lastTrackID == "" {
+		return idleJSON
+	}
+	data, _ := json.Marshal(msg{
+		Type:       "playing",
+		Track:      p.currentTrack,
+		Lyrics:     p.currentLyrics,
+		PositionMs: p.estimatePos(),
+		IsPlaying:  p.lastIsPlaying,
+	})
+	return data
+}
+
 func (p *poller) run(ctx context.Context) {
 	// Fire the first poll immediately, then use the returned interval.
 	timer := time.NewTimer(0)

@@ -22,6 +22,9 @@ func NewServer(client *spotify.Client) *Server {
 func (s *Server) Handler(ctx context.Context) http.Handler {
 	h := newHub()
 	p := newPoller(s.client, h)
+	h.mu.Lock()
+	h.snapshotFn = p.snapshot
+	h.mu.Unlock()
 	go p.run(ctx)
 	return h.wsHandler()
 }
