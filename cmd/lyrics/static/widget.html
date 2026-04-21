@@ -43,6 +43,9 @@
 
       /* Duration of the scroll animation */
       --scroll-duration: 0.35s;
+
+      /* How long the fade-out after the last line takes */
+      --fadeout-duration: 1.5s;
     }
     /* End of customisation */
 
@@ -73,6 +76,7 @@
       max-width: var(--max-width);
       width: 100%;
       padding: var(--padding);
+      transition: opacity var(--fadeout-duration) ease;
     }
 
     /* Translated upward during the scroll animation. */
@@ -124,16 +128,19 @@
 <script>
   /* State */
 
-  let lyrics      = [];
-  let positionMs  = 0;
-  let isPlaying   = false;
-  let receivedAt  = 0;
-  let activeIndex = -1;
-  let scrolling   = false;
-  let trackId     = '';
+  let lyrics        = [];
+  let positionMs    = 0;
+  let isPlaying     = false;
+  let receivedAt    = 0;
+  let activeIndex   = -1;
+  let scrolling     = false;
+  let trackId       = '';
+  let lastLineEndMs = 0;   // end_ms of the last lyric line; 0 = unknown
+  let fadingOut     = false;
 
   /* DOM references */
 
+  const stageEl    = document.getElementById('stage');
   const linesEl    = document.getElementById('lines');
   const prevEl     = document.getElementById('prev');
   const curEl      = document.getElementById('cur');
@@ -162,6 +169,10 @@
     setTransitions(false);
     linesEl.style.transform  = '';
     linesEl.offsetHeight;   // flush layout so no pending transitions can fire
+
+    // Restore stage visibility in case a fade-out was in progress.
+    fadingOut            = false;
+    stageEl.style.opacity = '';
 
     prevEl.textContent     = textAt(index - 1);
     curEl.textContent      = textAt(index);
@@ -224,6 +235,19 @@
       ? positionMs + (performance.now() - receivedAt)
       : positionMs;
 
+    // Fade out after the last line has finished.
+    if (lastLineEndMs > 0 && currentMs > lastLineEndMs) {
+      if (!fadingOut) {
+        fadingOut             = true;
+        stageEl.style.opacity = '0';
+      }
+      return;
+    }
+    if (fadingOut) {
+      fadingOut             = false;
+      stageEl.style.opacity = '';
+    }
+
     let newIndex = -1;
     for (let i = 0; i < lyrics.length; i++) {
       if (lyrics[i].start_ms <= currentMs) newIndex = i;
@@ -262,7 +286,8 @@
       const newTrackId = msg.track?.id ?? '';
 
       if (msg.type === 'playing') {
-        const trackChanged = newTrackId !== trackId;
+        const trackChanged  = newTrackId !== trackId;
+        const trackDurMs    = msg.track?.duration_ms || 0;
         trackId    = newTrackId;
         lyrics     = msg.lyrics || [];
         positionMs = msg.position_ms;
@@ -271,17 +296,22 @@
 
         if (trackChanged || lyrics.length === 0) {
           // Clear immediately; tick() will render the right line once lyrics arrive.
+          lastLineEndMs = 0;
           snapTo(-1);
           requestAnimationFrame(() => requestAnimationFrame(() => setTransitions(true)));
         } else {
           // Same track (seek or pause/resume): let tick() recalculate.
-          activeIndex = -1;
-          scrolling   = false;
+          // Fallback chain: server-provided end_ms → track duration → 5 s after last line start.
+          const last = lyrics[lyrics.length - 1];
+          lastLineEndMs = last.end_ms || trackDurMs || (last.start_ms + 5000);
+          activeIndex   = -1;
+          scrolling     = false;
         }
       } else if (msg.type === 'idle') {
-        trackId   = '';
-        lyrics    = [];
-        isPlaying = false;
+        trackId       = '';
+        lyrics        = [];
+        lastLineEndMs = 0;
+        isPlaying     = false;
         snapTo(-1);
       }
     };
