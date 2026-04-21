@@ -145,6 +145,14 @@ jobs:
           git sparse-checkout init --cone
           git sparse-checkout set libobs frontend/api
           git checkout
+          # Generate obsconfig.h from the template (normally built by CMake).
+          # All #cmakedefine features are disabled (not applicable on Windows);
+          # only the two numeric placeholders need substituting.
+          sed \
+            -e 's|^#cmakedefine \([^ ]*\).*|/* #undef \1 */|' \
+            -e 's|@OBS_RELEASE_CANDIDATE@|0|g' \
+            -e 's|@OBS_BETA@|0|g' \
+            obs-src/libobs/obsconfig.h.in > obs-src/libobs/obsconfig.h
       - name: Download OBS Windows x64 release and generate import libs
         if: steps.obs-win-cache.outputs.cache-hit != 'true'
         run: |
