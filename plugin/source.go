@@ -8,11 +8,14 @@ package main
 
 void blog_string(int log_level, const char *string);
 void call_enum_proc(obs_source_enum_proc_t proc, obs_source_t *parent, obs_source_t *child, void *param);
+
+extern bool source_css_mode_changed_cb(obs_properties_t *props, obs_property_t *prop, obs_data_t *settings);
 */
 import "C"
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"unsafe"
 )
@@ -28,12 +31,96 @@ type lyricsSource struct {
 	url       string
 	isActive  bool
 	isShowing bool
+	cssMode   string // "simple" | "advanced"
+	customCSS string // rendered CSS injected into the nested browser_source
 }
 
 var (
 	sourcesMu sync.Mutex
 	sources   []*lyricsSource
 )
+
+/* CSS variable definitions, kept in display order */
+
+var cssVarDefs = []struct {
+	key    string // OBS settings key
+	prop   string // CSS custom property name
+	label  string // label shown in OBS properties
+	defVal string // mirrors the :root default in widget.html
+}{
+	{"css_font_family", "--font-family", "Font family", "'Segoe UI', system-ui, sans-serif"},
+	{"css_current_color", "--current-color", "Active line: color", "#ffffff"},
+	{"css_current_size", "--current-size", "Active line: font size", "2.2rem"},
+	{"css_current_weight", "--current-weight", "Active line: font weight", "700"},
+	{"css_adjacent_color", "--adjacent-color", "Adjacent lines: color", "rgba(255, 255, 255, 0.45)"},
+	{"css_adjacent_size", "--adjacent-size", "Adjacent lines: font size", "1.4rem"},
+	{"css_adjacent_weight", "--adjacent-weight", "Adjacent lines: font weight", "400"},
+	{"css_row_height", "--row-height", "Row height", "4rem"},
+	{"css_padding", "--padding", "Padding", "0 1rem"},
+	{"css_max_width", "--max-width", "Max width", "80vw"},
+	{"css_text_shadow", "--text-shadow", "Text shadow", "0 2px 10px rgba(0, 0, 0, 0.8)"},
+	{"css_scroll_duration", "--scroll-duration", "Scroll animation duration", "0.35s"},
+	{"css_fadeout_duration", "--fadeout-duration", "Fade-out duration", "1.5s"},
+}
+
+// buildCSSFromSettings builds the CSS string to inject into the nested browser_source.
+func buildCSSFromSettings(settings *C.obs_data_t) string {
+	modeCS := C.CString("css_mode")
+	mode := C.GoString(C.obs_data_get_string(settings, modeCS))
+	C.free(unsafe.Pointer(modeCS))
+
+	if mode == "advanced" {
+		advCS := C.CString("css_advanced")
+		css := C.GoString(C.obs_data_get_string(settings, advCS))
+		C.free(unsafe.Pointer(advCS))
+		return css
+	}
+
+	var sb strings.Builder
+	sb.WriteString(":root {\n")
+	for _, v := range cssVarDefs {
+		keyCS := C.CString(v.key)
+		val := C.GoString(C.obs_data_get_string(settings, keyCS))
+		C.free(unsafe.Pointer(keyCS))
+		if val == "" {
+			val = v.defVal
+		}
+		fmt.Fprintf(&sb, "  %s: %s;\n", v.prop, val)
+	}
+	sb.WriteString("}\n")
+
+	extraCS := C.CString("css_extra")
+	extra := C.GoString(C.obs_data_get_string(settings, extraCS))
+	C.free(unsafe.Pointer(extraCS))
+	if extra != "" {
+		sb.WriteString("\n")
+		sb.WriteString(extra)
+		sb.WriteString("\n")
+	}
+	return sb.String()
+}
+
+// updateCSSModeVisibility shows or hides property groups based on the selected CSS mode.
+func updateCSSModeVisibility(props *C.obs_properties_t, mode string) {
+	isSimple := mode != "advanced"
+	for _, v := range cssVarDefs {
+		keyCS := C.CString(v.key)
+		if p := C.obs_properties_get(props, keyCS); p != nil {
+			C.obs_property_set_visible(p, C.bool(isSimple))
+		}
+		C.free(unsafe.Pointer(keyCS))
+	}
+	extraCS := C.CString("css_extra")
+	if p := C.obs_properties_get(props, extraCS); p != nil {
+		C.obs_property_set_visible(p, C.bool(isSimple))
+	}
+	C.free(unsafe.Pointer(extraCS))
+	advCS := C.CString("css_advanced")
+	if p := C.obs_properties_get(props, advCS); p != nil {
+		C.obs_property_set_visible(p, C.bool(!isSimple))
+	}
+	C.free(unsafe.Pointer(advCS))
+}
 
 func trackSource(s *lyricsSource) {
 	sourcesMu.Lock()
@@ -150,27 +237,74 @@ func source_get_height(data C.uintptr_t) C.uint32_t {
 func source_get_defaults(settings *C.obs_data_t) {
 	C.obs_data_set_default_int(settings, C.CString("width"), 1920)
 	C.obs_data_set_default_int(settings, C.CString("height"), 1080)
+	C.obs_data_set_default_string(settings, C.CString("css_mode"), C.CString("simple"))
+	for _, v := range cssVarDefs {
+		keyCS := C.CString(v.key)
+		valCS := C.CString(v.defVal)
+		C.obs_data_set_default_string(settings, keyCS, valCS)
+		C.free(unsafe.Pointer(keyCS))
+		C.free(unsafe.Pointer(valCS))
+	}
 }
 
 //export source_get_props
 func source_get_props(data C.uintptr_t) *C.obs_properties_t {
 	s := cgoHandleValue(data).(*lyricsSource)
 	props := C.obs_properties_create()
+	// No DEFER_UPDATE here, we want live preview as fields change
 
 	C.obs_properties_add_int(props, C.CString("width"), C.CString("Width"), 1, 7680, 1)
 	C.obs_properties_add_int(props, C.CString("height"), C.CString("Height"), 1, 4320, 1)
 
 	s.mu.Lock()
 	url := s.url
+	cssMode := s.cssMode
 	s.mu.Unlock()
 
-	infoLabel := "Widget URL: (server not running)"
+	infoLabel := "Server not running."
 	if url != "" {
 		infoLabel = fmt.Sprintf("Widget URL: %s/", url)
 	}
-	C.obs_properties_add_text(props, C.CString("url_info"), C.CString(infoLabel), C.OBS_TEXT_DEFAULT)
+	p := C.obs_properties_add_text(props, C.CString("url_info"), C.CString(infoLabel), C.OBS_TEXT_INFO)
+	C.obs_property_text_set_info_type(p, C.OBS_TEXT_INFO_NORMAL)
+
+	/* Style / CSS customization */
+	modeList := C.obs_properties_add_list(
+		props,
+		C.CString("css_mode"),
+		C.CString("Style"),
+		C.OBS_COMBO_TYPE_LIST,
+		C.OBS_COMBO_FORMAT_STRING,
+	)
+	C.obs_property_list_add_string(modeList, C.CString("Simple (CSS variables)"), C.CString("simple"))
+	C.obs_property_list_add_string(modeList, C.CString("Custom CSS"), C.CString("advanced"))
+	C.obs_property_set_modified_callback(modeList, C.obs_property_modified_t(unsafe.Pointer(C.source_css_mode_changed_cb)))
+
+	for _, v := range cssVarDefs {
+		keyCS := C.CString(v.key)
+		labelCS := C.CString(v.label)
+		C.obs_properties_add_text(props, keyCS, labelCS, C.OBS_TEXT_DEFAULT)
+		C.free(unsafe.Pointer(keyCS))
+		C.free(unsafe.Pointer(labelCS))
+	}
+	C.obs_properties_add_text(props, C.CString("css_extra"), C.CString("Additional CSS"), C.OBS_TEXT_MULTILINE)
+	C.obs_properties_add_text(props, C.CString("css_advanced"), C.CString("Custom CSS"), C.OBS_TEXT_MULTILINE)
+
+	if cssMode == "" {
+		cssMode = "simple"
+	}
+	updateCSSModeVisibility(props, cssMode)
 
 	return props
+}
+
+//export source_css_mode_changed_cb
+func source_css_mode_changed_cb(props *C.obs_properties_t, _ *C.obs_property_t, settings *C.obs_data_t) C.bool {
+	modeCS := C.CString("css_mode")
+	mode := C.GoString(C.obs_data_get_string(settings, modeCS))
+	C.free(unsafe.Pointer(modeCS))
+	updateCSSModeVisibility(props, mode)
+	return true
 }
 
 //export source_activate
@@ -229,7 +363,7 @@ func source_enum_active_sources(data C.uintptr_t, enumCB C.obs_source_enum_proc_
 	}
 }
 
-/* source_update and source_get_props (called with s.mu held for applyURL) */
+/* source_update and nested CSS management (called with s.mu held for applyURL) */
 
 //export source_update
 func source_update(data C.uintptr_t, settings *C.obs_data_t) {
@@ -244,7 +378,34 @@ func source_update(data C.uintptr_t, settings *C.obs_data_t) {
 		s.height = h
 	}
 
+	modeCS := C.CString("css_mode")
+	s.cssMode = C.GoString(C.obs_data_get_string(settings, modeCS))
+	C.free(unsafe.Pointer(modeCS))
+	if s.cssMode == "" {
+		s.cssMode = "simple"
+	}
+
+	s.customCSS = buildCSSFromSettings(settings)
+
+	prevNested := s.nested
 	s.applyURL()
+	// If the nested source already existed (URL unchanged), push the CSS update.
+	if s.nested != nil && s.nested == prevNested {
+		s.applyNestedCSS(s.customCSS)
+	}
+}
+
+// applyNestedCSS updates only the css setting of the nested browser_source without
+// touching url/width/height (obs_source_update merges into existing settings).
+func (s *lyricsSource) applyNestedCSS(css string) {
+	nsettings := C.obs_data_create()
+	defer C.obs_data_release(nsettings)
+	cssKeyCS := C.CString("css")
+	cssCS := C.CString(css)
+	defer C.free(unsafe.Pointer(cssKeyCS))
+	defer C.free(unsafe.Pointer(cssCS))
+	C.obs_data_set_string(nsettings, cssKeyCS, cssCS)
+	C.obs_source_update(s.nested, nsettings)
 }
 
 /* Nested browser_source management (called with s.mu held) */
@@ -288,6 +449,14 @@ func (s *lyricsSource) createNested(url string) {
 	C.obs_data_set_int(settings, widthCS, C.longlong(s.width))
 	C.obs_data_set_int(settings, heightCS, C.longlong(s.height))
 	C.obs_data_set_bool(settings, shutdownCS, false)
+
+	cssKeyCS := C.CString("css")
+	cssCS := C.CString(s.customCSS)
+	defer func() {
+		C.free(unsafe.Pointer(cssKeyCS))
+		C.free(unsafe.Pointer(cssCS))
+	}()
+	C.obs_data_set_string(settings, cssKeyCS, cssCS)
 
 	idCS := C.CString("browser_source")
 	nameCS := C.CString("spotify-lyrics-browser")
