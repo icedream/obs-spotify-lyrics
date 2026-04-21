@@ -53,7 +53,7 @@ type CurrentlyPlayingResponse struct {
 type connectStateMeta map[string]string
 
 type connectStateTrack struct {
-	URI      string          `json:"uri"`
+	URI      string           `json:"uri"`
 	Metadata connectStateMeta `json:"metadata"`
 }
 
@@ -77,7 +77,7 @@ func (c *Client) getDealerConnectionID(accessToken string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("dealer WebSocket dial failed: %w", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	for i := 0; i < 5; i++ {
 		_, msg, err := conn.ReadMessage()
@@ -138,7 +138,7 @@ func (c *Client) CurrentlyPlaying(ctx context.Context) (*CurrentlyPlayingRespons
 	if err != nil {
 		return nil, fmt.Errorf("connect-state request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == http.StatusUnauthorized {
 		return nil, &Error{Message: "unauthorized: sp_dc cookie may be expired", StatusCode: resp.StatusCode}

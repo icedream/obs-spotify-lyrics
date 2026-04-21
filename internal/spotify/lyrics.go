@@ -37,7 +37,7 @@ func (c *Client) Lyrics(ctx context.Context, trackID string) (*LyricsResponse, e
 	if err != nil {
 		return nil, fmt.Errorf("lyrics request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	switch resp.StatusCode {
 	case http.StatusTooManyRequests:
