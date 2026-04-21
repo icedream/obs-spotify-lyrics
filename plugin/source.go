@@ -376,7 +376,6 @@ func source_enum_active_sources(data C.uintptr_t, enumCB C.obs_source_enum_proc_
 func source_update(data C.uintptr_t, settings *C.obs_data_t) {
 	s := cgoHandleValue(data).(*lyricsSource)
 	s.mu.Lock()
-	defer s.mu.Unlock()
 
 	if w := uint32(C.obs_data_get_int(settings, C.CString("width"))); w > 0 {
 		s.width = w
@@ -396,23 +395,43 @@ func source_update(data C.uintptr_t, settings *C.obs_data_t) {
 
 	prevNested := s.nested
 	s.applyURL()
-	// If the nested source already existed (URL unchanged), push the CSS update.
-	if s.nested != nil && s.nested == prevNested {
-		s.applyNestedCSS(s.customCSS)
+
+	// Capture what we need for the nested update, then release the mutex
+	// before calling obs_source_update to avoid a re-entrancy deadlock
+	// (OBS may call source_enum_active_sources synchronously, which locks s.mu).
+	nested := s.nested
+	doUpdate := nested != nil && nested == prevNested
+	css := s.customCSS
+	w := s.width
+	h := s.height
+	s.mu.Unlock()
+
+	if doUpdate {
+		applyNestedSettings(nested, css, w, h)
 	}
 }
 
-// applyNestedCSS updates only the css setting of the nested browser_source without
-// touching url/width/height (obs_source_update merges into existing settings).
-func (s *lyricsSource) applyNestedCSS(css string) {
+// applyNestedSettings pushes css, width, and height to an existing nested
+// browser_source. Must be called WITHOUT s.mu held.
+func applyNestedSettings(nested *C.obs_source_t, css string, w, h uint32) {
 	nsettings := C.obs_data_create()
 	defer C.obs_data_release(nsettings)
+
 	cssKeyCS := C.CString("css")
 	cssCS := C.CString(css)
-	defer C.free(unsafe.Pointer(cssKeyCS))
-	defer C.free(unsafe.Pointer(cssCS))
+	widthCS := C.CString("width")
+	heightCS := C.CString("height")
+	defer func() {
+		C.free(unsafe.Pointer(cssKeyCS))
+		C.free(unsafe.Pointer(cssCS))
+		C.free(unsafe.Pointer(widthCS))
+		C.free(unsafe.Pointer(heightCS))
+	}()
+
 	C.obs_data_set_string(nsettings, cssKeyCS, cssCS)
-	C.obs_source_update(s.nested, nsettings)
+	C.obs_data_set_int(nsettings, widthCS, C.longlong(w))
+	C.obs_data_set_int(nsettings, heightCS, C.longlong(h))
+	C.obs_source_update(nested, nsettings)
 }
 
 /* Nested browser_source management (called with s.mu held) */
