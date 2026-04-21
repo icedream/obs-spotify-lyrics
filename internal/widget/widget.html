@@ -308,17 +308,22 @@
 
         if (trackChanged || lyrics.length === 0) {
           // Clear immediately; tick() will render the right line once lyrics arrive.
-          lastLineEndMs = 0;
           snapTo(-1);
           requestAnimationFrame(() => requestAnimationFrame(() => setTransitions(true)));
         } else {
-          // Same track (seek or pause/resume): let tick() recalculate.
-          //
-          // Fallback chain: server-provided end_ms -> track duration -> 5 s after last line start
-          const last = lyrics[lyrics.length - 1];
-          lastLineEndMs = last.end_ms || trackDurMs || (last.start_ms + 5000);
+          // Same track (seek or pause/resume): let tick() recalculate position.
           activeIndex   = -1;
           scrolling     = false;
+        }
+
+        // Always recalculate the fade-out point whenever we have lyrics,
+        // including on first load and track changes.
+        // Fallback chain: server-provided end_ms -> track duration -> 5 s after last line start.
+        if (lyrics.length > 0) {
+          const last = lyrics[lyrics.length - 1];
+          lastLineEndMs = last.end_ms || trackDurMs || (last.start_ms + 5000);
+        } else {
+          lastLineEndMs = 0;
         }
       } else if (msg.type === 'idle') {
         trackId       = '';
