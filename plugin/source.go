@@ -7,12 +7,12 @@ package main
 #include <string.h>
 
 void blog_string(int log_level, const char *string);
+void call_enum_proc(obs_source_enum_proc_t proc, obs_source_t *parent, obs_source_t *child, void *param);
 */
 import "C"
 
 import (
 	"fmt"
-	"runtime"
 	"sync"
 	"unsafe"
 )
@@ -20,12 +20,14 @@ import (
 /* lyricsSource represents one "Spotify Lyrics" source instance. */
 
 type lyricsSource struct {
-	self   *C.obs_source_t
-	nested *C.obs_source_t
-	mu     sync.Mutex
-	width  uint32
-	height uint32
-	url    string
+	self      *C.obs_source_t
+	nested    *C.obs_source_t
+	mu        sync.Mutex
+	width     uint32
+	height    uint32
+	url       string
+	isActive  bool
+	isShowing bool
 }
 
 var (
@@ -74,9 +76,6 @@ func source_get_name(_ C.uintptr_t) *C.char {
 
 //export source_create
 func source_create(settings *C.obs_data_t, self *C.obs_source_t) C.uintptr_t {
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-
 	s := &lyricsSource{
 		self:   self,
 		width:  1920,
@@ -101,9 +100,6 @@ func source_create(settings *C.obs_data_t, self *C.obs_source_t) C.uintptr_t {
 
 //export source_destroy
 func source_destroy(data C.uintptr_t) {
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-
 	s := cgoHandleValue(data).(*lyricsSource)
 	cgoDeleteHandle(data)
 	untrackSource(s)
@@ -130,7 +126,9 @@ func source_get_width(data C.uintptr_t) C.uint32_t {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.nested != nil {
-		return C.obs_source_get_width(s.nested)
+		if w := C.obs_source_get_width(s.nested); w > 0 {
+			return w
+		}
 	}
 	return C.uint32_t(s.width)
 }
@@ -141,7 +139,9 @@ func source_get_height(data C.uintptr_t) C.uint32_t {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.nested != nil {
-		return C.obs_source_get_height(s.nested)
+		if h := C.obs_source_get_height(s.nested); h > 0 {
+			return h
+		}
 	}
 	return C.uint32_t(s.height)
 }
@@ -173,11 +173,66 @@ func source_get_props(data C.uintptr_t) *C.obs_properties_t {
 	return props
 }
 
+//export source_activate
+func source_activate(data C.uintptr_t) {
+	s := cgoHandleValue(data).(*lyricsSource)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.isActive = true
+	if s.nested != nil {
+		C.obs_source_add_active_child(s.self, s.nested)
+	}
+}
+
+//export source_deactivate
+func source_deactivate(data C.uintptr_t) {
+	s := cgoHandleValue(data).(*lyricsSource)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.isActive = false
+	if s.nested != nil {
+		C.obs_source_remove_active_child(s.self, s.nested)
+	}
+}
+
+//export source_show
+func source_show(data C.uintptr_t) {
+	s := cgoHandleValue(data).(*lyricsSource)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.isShowing = true
+	if s.nested != nil {
+		C.obs_source_inc_showing(s.nested)
+	}
+}
+
+//export source_hide
+func source_hide(data C.uintptr_t) {
+	s := cgoHandleValue(data).(*lyricsSource)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.isShowing = false
+	if s.nested != nil {
+		C.obs_source_dec_showing(s.nested)
+	}
+}
+
+//export source_enum_active_sources
+func source_enum_active_sources(data C.uintptr_t, enumCB C.obs_source_enum_proc_t, param unsafe.Pointer) {
+	s := cgoHandleValue(data).(*lyricsSource)
+	s.mu.Lock()
+	nested := s.nested
+	self := s.self
+	s.mu.Unlock()
+	if nested != nil {
+		C.call_enum_proc(enumCB, self, nested, param)
+	}
+}
+
+/* source_update and source_get_props (called with s.mu held for applyURL) */
+
 //export source_update
 func source_update(data C.uintptr_t, settings *C.obs_data_t) {
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-
 	s := cgoHandleValue(data).(*lyricsSource)
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -208,6 +263,7 @@ func (s *lyricsSource) applyURL() {
 		blog(C.LOG_WARNING, "browser_source not available, add Browser Source manually with URL: "+url)
 		return
 	}
+	blog(C.LOG_INFO, fmt.Sprintf("creating nested browser_source for %s/", url))
 	s.createNested(url + "/")
 }
 
@@ -240,10 +296,27 @@ func (s *lyricsSource) createNested(url string) {
 		C.free(unsafe.Pointer(nameCS))
 	}()
 	s.nested = C.obs_source_create_private(idCS, nameCS, settings)
+	if s.nested != nil {
+		blog(C.LOG_INFO, fmt.Sprintf("nested browser_source created (active=%v showing=%v)", s.isActive, s.isShowing))
+		if s.isActive {
+			C.obs_source_add_active_child(s.self, s.nested)
+		}
+		if s.isShowing {
+			C.obs_source_inc_showing(s.nested)
+		}
+	} else {
+		blog(C.LOG_WARNING, "obs_source_create_private returned nil for browser_source")
+	}
 }
 
 func (s *lyricsSource) destroyNested() {
 	if s.nested != nil {
+		if s.isShowing {
+			C.obs_source_dec_showing(s.nested)
+		}
+		if s.isActive {
+			C.obs_source_remove_active_child(s.self, s.nested)
+		}
 		C.obs_source_release(s.nested)
 		s.nested = nil
 	}

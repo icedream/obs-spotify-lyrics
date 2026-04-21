@@ -5,7 +5,6 @@ package main
 #include <obs-frontend-api.h>
 #include <util/platform.h>
 #include <stdlib.h>
-#include <string.h>
 
 void blog_string(int log_level, const char *string);
 
@@ -15,11 +14,8 @@ extern bool mode_changed_cb (obs_properties_t *props, obs_property_t *prop, obs_
 import "C"
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
-	"runtime"
+	"runtime/cgo"
 	"sync"
 	"unsafe"
 )
@@ -32,122 +28,59 @@ const (
 )
 
 type pluginConfig struct {
-	Mode        string `json:"mode"`
-	Port        int    `json:"port"`
-	SpDC        string `json:"sp_dc"`
-	DeviceID    string `json:"device_id"`
-	ExternalURL string `json:"external_url"`
+	Mode        string
+	Port        int
+	SpDC        string
+	DeviceID    string
+	ExternalURL string
 }
 
 func defaultConfig() pluginConfig {
-	return pluginConfig{Mode: modeInternal, Port: 8080}
+	return pluginConfig{Mode: modeInternal, Port: 0}
 }
 
 var (
-	cfgMu  sync.Mutex
-	cfg    = defaultConfig()
-	cfgPath string
+	cfgMu sync.Mutex
+	cfg   = defaultConfig()
 )
-
-func configPath() string {
-	cs := C.obs_module_get_config_path(obs_current_module(), C.CString("config.json"))
-	if cs == nil {
-		return ""
-	}
-	defer C.bfree(unsafe.Pointer(cs))
-	return C.GoString(cs)
-}
-
-func loadConfig() {
-	path := configPath()
-	if path == "" {
-		return
-	}
-	cfgPath = path
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return
-	}
-	cfgMu.Lock()
-	defer cfgMu.Unlock()
-	parsed := defaultConfig()
-	if err := json.Unmarshal(data, &parsed); err != nil {
-		return
-	}
-	cfg = parsed
-}
-
-func saveConfig() {
-	cfgMu.Lock()
-	current := cfg
-	cfgMu.Unlock()
-	if cfgPath == "" {
-		return
-	}
-	_ = os.MkdirAll(filepath.Dir(cfgPath), 0o755)
-	data, err := json.Marshal(current)
-	if err != nil {
-		return
-	}
-	_ = os.WriteFile(cfgPath, data, 0o600)
-}
 
 /* Dummy source (config page) */
 
-var (
-	dummySource *C.obs_source_t
-	dummyMu     sync.Mutex
-)
+var dummySource *C.obs_source_t // accessed only from OBS main thread
 
 //export dummy_get_name
 func dummy_get_name(_ C.uintptr_t) *C.char {
 	return C.CString("Spotify Lyrics Config")
 }
 
+// dummy_create returns a non-zero handle so OBS calls get_properties.
+//
 //export dummy_create
-func dummy_create(_ *C.obs_data_t, source *C.obs_source_t) C.uintptr_t {
-	dummyMu.Lock()
-	if dummySource == nil {
-		dummySource = source
-	}
-	dummyMu.Unlock()
-	return 0
+func dummy_create(settings *C.obs_data_t, source *C.obs_source_t) C.uintptr_t {
+	_ = settings
+	_ = source
+	return C.uintptr_t(cgo.NewHandle(&struct{}{}))
 }
 
 //export dummy_destroy
-func dummy_destroy(_ C.uintptr_t) {
-	dummyMu.Lock()
+func dummy_destroy(data C.uintptr_t) {
+	cgo.Handle(data).Delete()
 	dummySource = nil
-	dummyMu.Unlock()
 }
 
 //export dummy_get_defaults
 func dummy_get_defaults(settings *C.obs_data_t) {
-	cfgMu.Lock()
-	c := cfg
-	cfgMu.Unlock()
-
-	mode := C.CString(c.Mode)
-	spdc := C.CString(c.SpDC)
-	devid := C.CString(c.DeviceID)
-	exturl := C.CString(c.ExternalURL)
-	defer func() {
-		C.free(unsafe.Pointer(mode))
-		C.free(unsafe.Pointer(spdc))
-		C.free(unsafe.Pointer(devid))
-		C.free(unsafe.Pointer(exturl))
-	}()
-
-	C.obs_data_set_default_string(settings, C.CString("mode"), mode)
-	C.obs_data_set_default_int(settings, C.CString("port"), C.longlong(c.Port))
-	C.obs_data_set_default_string(settings, C.CString("sp_dc"), spdc)
-	C.obs_data_set_default_string(settings, C.CString("device_id"), devid)
-	C.obs_data_set_default_string(settings, C.CString("external_url"), exturl)
+	C.obs_data_set_default_string(settings, C.CString("mode"), C.CString(modeInternal))
+	C.obs_data_set_default_int(settings, C.CString("port"), 0)
+	C.obs_data_set_default_string(settings, C.CString("sp_dc"), C.CString(""))
+	C.obs_data_set_default_string(settings, C.CString("device_id"), C.CString(""))
+	C.obs_data_set_default_string(settings, C.CString("external_url"), C.CString(""))
 }
 
 //export dummy_get_props
 func dummy_get_props(_ C.uintptr_t) *C.obs_properties_t {
 	props := C.obs_properties_create()
+	C.obs_properties_set_flags(props, C.OBS_PROPERTIES_DEFER_UPDATE)
 
 	modeList := C.obs_properties_add_list(
 		props,
@@ -160,18 +93,19 @@ func dummy_get_props(_ C.uintptr_t) *C.obs_properties_t {
 	C.obs_property_list_add_string(modeList, C.CString("External server"), C.CString(modeExternal))
 	C.obs_property_set_modified_callback(modeList, C.obs_property_modified_t(unsafe.Pointer(C.mode_changed_cb)))
 
-	C.obs_properties_add_int(props, C.CString("port"), C.CString("Port"), 1, 65535, 1)
+	C.obs_properties_add_int(props, C.CString("port"), C.CString("Port (0 = automatic)"), 0, 65535, 1)
 	C.obs_properties_add_text(props, C.CString("sp_dc"), C.CString("sp_dc cookie (auto-discover if empty)"), C.OBS_TEXT_PASSWORD)
 	C.obs_properties_add_text(props, C.CString("device_id"), C.CString("Device ID (random if empty)"), C.OBS_TEXT_DEFAULT)
 
 	srvMu.Lock()
 	url := widgetBaseURL
 	srvMu.Unlock()
-	statusLabel := "Server not running"
+	statusMsg := "Server not running."
 	if url != "" {
-		statusLabel = "Server running on " + url + "/"
+		statusMsg = fmt.Sprintf("Server running at %s", url)
 	}
-	C.obs_properties_add_text(props, C.CString("status_info"), C.CString(statusLabel), C.OBS_TEXT_DEFAULT)
+	p := C.obs_properties_add_text(props, C.CString("status_info"), C.CString(statusMsg), C.OBS_TEXT_INFO)
+	C.obs_property_text_set_info_type(p, C.OBS_TEXT_INFO_NORMAL)
 
 	C.obs_properties_add_text(props, C.CString("external_url"), C.CString("External server URL"), C.OBS_TEXT_DEFAULT)
 
@@ -191,8 +125,11 @@ func dummy_update(_ C.uintptr_t, settings *C.obs_data_t) {
 	newDevID := C.GoString(C.obs_data_get_string(settings, C.CString("device_id")))
 	newExtURL := C.GoString(C.obs_data_get_string(settings, C.CString("external_url")))
 
-	if newPort <= 0 {
-		newPort = 8080
+	if newPort < 0 {
+		newPort = 0
+	}
+	if newMode == "" {
+		newMode = modeInternal
 	}
 
 	cfgMu.Lock()
@@ -205,7 +142,8 @@ func dummy_update(_ C.uintptr_t, settings *C.obs_data_t) {
 	}
 	cfgMu.Unlock()
 
-	applyConfig()
+	// Run off the OBS main thread: server start may block on the system keyring.
+	go applyConfig()
 }
 
 func applyConfig() {
@@ -229,17 +167,19 @@ func applyConfig() {
 
 /* Frontend callback */
 
-var frontMenuCS *C.char
+var (
+	frontMenuCS      *C.char
+	configFilenameCS = C.CString("config.json")
+)
 
 //export frontend_event_cb
 func frontend_event_cb(event C.enum_obs_frontend_event, _ C.uintptr_t) {
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-
 	switch event {
 	case C.OBS_FRONTEND_EVENT_FINISHED_LOADING:
-		loadConfig()
-		applyConfig()
+		// Create config directory.
+		configDir := C.obs_module_get_config_path(obs_current_module(), nil)
+		C.os_mkdirs(configDir)
+		C.bfree(unsafe.Pointer(configDir))
 
 		frontMenuCS = C.CString("Spotify Lyrics")
 		C.obs_frontend_add_tools_menu_item(
@@ -248,34 +188,43 @@ func frontend_event_cb(event C.enum_obs_frontend_event, _ C.uintptr_t) {
 			nil,
 		)
 
-		dummyMu.Lock()
-		if dummySource == nil {
-			cs1 := C.CString("spotify-lyrics-config")
-			cs2 := C.CString("spotify-lyrics-config-instance")
-			dummySource = C.obs_source_create_private(cs1, cs2, nil)
-			C.free(unsafe.Pointer(cs1))
-			C.free(unsafe.Pointer(cs2))
+		// Load any previously saved settings from disk. obs_source_create does
+		// NOT call the update callback automatically, so we must call
+		// obs_source_update explicitly (matching obs-teleport's pattern).
+		configFile := C.obs_module_get_config_path(obs_current_module(), configFilenameCS)
+		savedSettings := C.obs_data_create_from_json_file(configFile)
+		C.bfree(unsafe.Pointer(configFile))
+		if savedSettings == nil {
+			// First run, create empty with defaults
+			savedSettings = C.obs_data_create()
 		}
-		dummyMu.Unlock()
 
-		blog(C.LOG_INFO, fmt.Sprintf("plugin loaded (mode=%s)", cfg.Mode))
+		dummySource = C.obs_source_create(dummyIDStr, frontMenuCS, nil, nil)
+		// Explicitly trigger dummy_update -> go applyConfig() -> server start.
+		C.obs_source_update(dummySource, savedSettings)
+		C.obs_data_release(savedSettings)
+
+		blog(C.LOG_INFO, "plugin loaded")
 
 	case C.OBS_FRONTEND_EVENT_EXIT:
+		if dummySource != nil {
+			configFile := C.obs_module_get_config_path(obs_current_module(), configFilenameCS)
+			settings := C.obs_source_get_settings(dummySource)
+			C.obs_data_save_json(settings, configFile)
+			C.obs_data_release(settings)
+			C.bfree(unsafe.Pointer(configFile))
+
+			C.obs_source_release(dummySource)
+			dummySource = nil
+		}
 		serverStop()
-		saveConfig()
 	}
 }
 
 //export frontend_cb
 func frontend_cb(_ C.uintptr_t) {
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-
-	dummyMu.Lock()
-	src := dummySource
-	dummyMu.Unlock()
-	if src != nil {
-		C.obs_frontend_open_source_properties(src)
+	if dummySource != nil {
+		C.obs_frontend_open_source_properties(dummySource)
 	}
 }
 

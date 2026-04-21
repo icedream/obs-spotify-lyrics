@@ -10,26 +10,35 @@ package main
 
 // Callback typedefs (using uintptr_t for the data/type_data arg)
 
-typedef char*              (*get_name_t)       (uintptr_t type_data);
-typedef uintptr_t          (*source_create_t)  (obs_data_t *settings, obs_source_t *source);
-typedef void               (*destroy_t)        (uintptr_t data);
-typedef obs_properties_t * (*get_properties_t) (uintptr_t data);
-typedef void               (*get_defaults_t)   (obs_data_t *settings);
-typedef void               (*update_t)         (uintptr_t data, obs_data_t *settings);
-typedef void               (*video_render_t)   (uintptr_t data, gs_effect_t *effect);
-typedef uint32_t           (*get_size_t)       (uintptr_t data);
+typedef char*              (*get_name_t)            (uintptr_t type_data);
+typedef uintptr_t          (*source_create_t)       (obs_data_t *settings, obs_source_t *source);
+typedef void               (*destroy_t)             (uintptr_t data);
+typedef obs_properties_t * (*get_properties_t)      (uintptr_t data);
+typedef void               (*get_defaults_t)        (obs_data_t *settings);
+typedef void               (*update_t)              (uintptr_t data, obs_data_t *settings);
+typedef void               (*video_render_t)        (uintptr_t data, gs_effect_t *effect);
+typedef uint32_t           (*get_size_t)            (uintptr_t data);
+typedef void               (*source_enum_sources_t) (uintptr_t data, obs_source_enum_proc_t enum_cb, void *param);
+
+// Function pointer wrapper for cgo calling, see helpers.c
+void call_enum_proc(obs_source_enum_proc_t proc, obs_source_t *parent, obs_source_t *child, void *param);
 
 // Lyrics source
 
-extern char *              source_get_name     (uintptr_t type_data);
-extern uintptr_t           source_create       (obs_data_t *settings, obs_source_t *source);
-extern void                source_destroy      (uintptr_t data);
-extern obs_properties_t *  source_get_props    (uintptr_t data);
-extern void                source_get_defaults (obs_data_t *settings);
-extern void                source_update       (uintptr_t data, obs_data_t *settings);
-extern void                source_video_render (uintptr_t data, gs_effect_t *effect);
-extern uint32_t            source_get_width    (uintptr_t data);
-extern uint32_t            source_get_height   (uintptr_t data);
+extern char *              source_get_name            (uintptr_t type_data);
+extern uintptr_t           source_create              (obs_data_t *settings, obs_source_t *source);
+extern void                source_destroy             (uintptr_t data);
+extern obs_properties_t *  source_get_props           (uintptr_t data);
+extern void                source_get_defaults        (obs_data_t *settings);
+extern void                source_update              (uintptr_t data, obs_data_t *settings);
+extern void                source_video_render        (uintptr_t data, gs_effect_t *effect);
+extern uint32_t            source_get_width           (uintptr_t data);
+extern uint32_t            source_get_height          (uintptr_t data);
+extern void                source_activate            (uintptr_t data);
+extern void                source_deactivate          (uintptr_t data);
+extern void                source_show                (uintptr_t data);
+extern void                source_hide                (uintptr_t data);
+extern void                source_enum_active_sources (uintptr_t data, obs_source_enum_proc_t enum_cb, void *param);
 
 // Config dummy source
 
@@ -93,18 +102,23 @@ func obs_module_load() C.bool {
 	blog(C.LOG_INFO, "version: "+pluginVersion+", go: "+runtime.Version())
 
 	C.obs_register_source_s(&C.struct_obs_source_info{
-		id:             sourceIDStr,
-		_type:          C.OBS_SOURCE_TYPE_INPUT,
-		output_flags:   C.OBS_SOURCE_VIDEO,
-		get_name:       C.get_name_t(unsafe.Pointer(C.source_get_name)),
-		create:         C.source_create_t(unsafe.Pointer(C.source_create)),
-		destroy:        C.destroy_t(unsafe.Pointer(C.source_destroy)),
-		get_properties: C.get_properties_t(unsafe.Pointer(C.source_get_props)),
-		get_defaults:   C.get_defaults_t(unsafe.Pointer(C.source_get_defaults)),
-		update:         C.update_t(unsafe.Pointer(C.source_update)),
-		video_render:   C.video_render_t(unsafe.Pointer(C.source_video_render)),
-		get_width:      C.get_size_t(unsafe.Pointer(C.source_get_width)),
-		get_height:     C.get_size_t(unsafe.Pointer(C.source_get_height)),
+		id:                  sourceIDStr,
+		_type:               C.OBS_SOURCE_TYPE_INPUT,
+		output_flags:        C.OBS_SOURCE_VIDEO | C.OBS_SOURCE_CUSTOM_DRAW,
+		get_name:            C.get_name_t(unsafe.Pointer(C.source_get_name)),
+		create:              C.source_create_t(unsafe.Pointer(C.source_create)),
+		destroy:             C.destroy_t(unsafe.Pointer(C.source_destroy)),
+		get_properties:      C.get_properties_t(unsafe.Pointer(C.source_get_props)),
+		get_defaults:        C.get_defaults_t(unsafe.Pointer(C.source_get_defaults)),
+		update:              C.update_t(unsafe.Pointer(C.source_update)),
+		video_render:        C.video_render_t(unsafe.Pointer(C.source_video_render)),
+		get_width:           C.get_size_t(unsafe.Pointer(C.source_get_width)),
+		get_height:          C.get_size_t(unsafe.Pointer(C.source_get_height)),
+		activate:            C.destroy_t(unsafe.Pointer(C.source_activate)),
+		deactivate:          C.destroy_t(unsafe.Pointer(C.source_deactivate)),
+		show:                C.destroy_t(unsafe.Pointer(C.source_show)),
+		hide:                C.destroy_t(unsafe.Pointer(C.source_hide)),
+		enum_active_sources: C.source_enum_sources_t(unsafe.Pointer(C.source_enum_active_sources)),
 	}, C.sizeof_struct_obs_source_info)
 
 	C.obs_register_source_s(&C.struct_obs_source_info{
