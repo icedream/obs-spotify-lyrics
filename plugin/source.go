@@ -164,9 +164,10 @@ func source_get_name(_ C.uintptr_t) *C.char {
 //export source_create
 func source_create(settings *C.obs_data_t, self *C.obs_source_t) C.uintptr_t {
 	s := &lyricsSource{
-		self:   self,
-		width:  1920,
-		height: 1080,
+		self:    self,
+		width:   1920,
+		height:  1080,
+		cssMode: "simple",
 	}
 
 	if settings != nil {
@@ -176,6 +177,12 @@ func source_create(settings *C.obs_data_t, self *C.obs_source_t) C.uintptr_t {
 		if h := uint32(C.obs_data_get_int(settings, C.CString("height"))); h > 0 {
 			s.height = h
 		}
+		modeCS := C.CString("css_mode")
+		if m := C.GoString(C.obs_data_get_string(settings, modeCS)); m != "" {
+			s.cssMode = m
+		}
+		C.free(unsafe.Pointer(modeCS))
+		s.customCSS = buildCSSFromSettings(settings)
 	}
 
 	trackSource(s)
