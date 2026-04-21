@@ -4,6 +4,10 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+
+env:
+  OBS_VERSION: "32.1.1"
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -12,7 +16,8 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
-      - run: go test ./...
+      # plugin/ has no tests and requires OBS CGO; test only pure-Go packages
+      - run: go test ./cmd/... ./internal/...
   build:
     runs-on: ubuntu-latest
     steps:
@@ -47,8 +52,125 @@ jobs:
       - uses: actions/checkout@v6
       - uses: actions/setup-go@v6
         with:
-          go-version-file: 'go.mod'
+          go-version-file: go.mod
+      - name: Update repo data
+        run: sudo apt update
+      - name: Install libobs-dev
+        run: sudo apt install -y libobs-dev
       - uses: golangci/golangci-lint-action@v9
         with:
           version: v2.11.4
+
+  build-binary:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {goos: linux,   goarch: amd64}
+          - {goos: linux,   goarch: arm64}
+          - {goos: windows, goarch: amd64}
+          - {goos: windows, goarch: arm64}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: Build binary (${{ matrix.goos }}/${{ matrix.goarch }})
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
+        run: |
+          go build \
+            -ldflags "-X main.version=$(git describe --always --tags)" \
+            -o /tmp/lyrics \
+            ./cmd/lyrics/
+
+  build-plugin-linux:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {runner: ubuntu-latest,    goarch: amd64}
+          - {runner: ubuntu-24.04-arm, goarch: arm64}
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: Update repo data
+        run: sudo apt update
+      - name: Install libobs-dev
+        run: sudo apt install -y libobs-dev
+      - name: Build OBS plugin (linux/${{ matrix.goarch }})
+        run: |
+          CGO_CFLAGS="-I/usr/include/obs" CGO_LDFLAGS="-lobs" \
+            go build -buildmode=c-shared \
+            -ldflags "-X main.pluginVersion=$(git describe --always --tags)" \
+            -o /tmp/spotify-lyrics.so \
+            ./plugin/
+
+  build-plugin-windows:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: Install MinGW cross-compiler and gendef
+        run: sudo apt-get install -y mingw-w64 mingw-w64-tools
+      - name: Cache OBS Windows SDK
+        uses: actions/cache@v5
+        id: obs-win-cache
+        with:
+          path: |
+            obs-src
+            obs-win-sdk
+          key: obs-win-sdk-${{ env.OBS_VERSION }}-x64
+      - name: Check out OBS headers
+        if: steps.obs-win-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone --filter=blob:none --no-checkout --depth=1 \
+            --branch "$OBS_VERSION" \
+            https://github.com/obsproject/obs-studio.git obs-src
+          cd obs-src
+          git sparse-checkout init --cone
+          git sparse-checkout set libobs frontend/api
+          git checkout
+      - name: Download OBS Windows x64 release and generate import libs
+        if: steps.obs-win-cache.outputs.cache-hit != 'true'
+        run: |
+          wget -q "https://github.com/obsproject/obs-studio/releases/download/${OBS_VERSION}/OBS-Studio-${OBS_VERSION}-Windows-x64.zip" \
+            -O obs-win.zip
+          unzip -q obs-win.zip -d obs-win-tmp
+          mkdir -p obs-win-sdk
+          find obs-win-tmp -name obs.dll            -exec cp {} obs-win-sdk/obs.dll \;
+          find obs-win-tmp -name obs-frontend-api.dll -exec cp {} obs-win-sdk/obs-frontend-api.dll \;
+          rm -rf obs-win-tmp obs-win.zip
+          cd obs-win-sdk
+          gendef obs.dll
+          x86_64-w64-mingw32-dlltool -d obs.def -l libobs.dll.a
+          gendef obs-frontend-api.dll
+          x86_64-w64-mingw32-dlltool -d obs-frontend-api.def -l libobs-frontend-api.dll.a
+      - name: Build OBS plugin (windows/amd64)
+        env:
+          GOOS: windows
+          GOARCH: amd64
+          CGO_ENABLED: "1"
+          CC: x86_64-w64-mingw32-gcc
+          CGO_CFLAGS: "-I${{ github.workspace }}/obs-src/libobs -I${{ github.workspace }}/obs-src/frontend/api"
+          CGO_LDFLAGS: "-L${{ github.workspace }}/obs-win-sdk -lobs -lobs-frontend-api"
+        run: |
+          go build -buildmode=c-shared \
+            -ldflags "-X main.pluginVersion=$(git describe --always --tags)" \
+            -o /tmp/spotify-lyrics-windows-amd64.dll \
+            ./plugin/
 

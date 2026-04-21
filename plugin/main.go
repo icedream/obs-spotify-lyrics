@@ -1,8 +1,8 @@
 package main
 
 /*
-#cgo CFLAGS: -I/usr/include/obs
-#cgo LDFLAGS: -lobs
+#cgo linux CFLAGS: -I/usr/include/obs
+#cgo linux LDFLAGS: -lobs
 
 #include <obs-module.h>
 #include <obs-frontend-api.h>
@@ -120,7 +120,7 @@ func obs_module_load() C.bool {
 		show:                C.destroy_t(unsafe.Pointer(C.source_show)),
 		hide:                C.destroy_t(unsafe.Pointer(C.source_hide)),
 		enum_active_sources: C.source_enum_sources_t(unsafe.Pointer(C.source_enum_active_sources)),
-	}, C.sizeof_struct_obs_source_info)
+	}, C.sizeof_struct_obs_source_info) //nolint:gocritic // CGo sizeof false positive
 
 	C.obs_register_source_s(&C.struct_obs_source_info{
 		id:             dummyIDStr,
@@ -132,7 +132,7 @@ func obs_module_load() C.bool {
 		get_properties: C.get_properties_t(unsafe.Pointer(C.dummy_get_props)),
 		get_defaults:   C.get_defaults_t(unsafe.Pointer(C.dummy_get_defaults)),
 		update:         C.update_t(unsafe.Pointer(C.dummy_update)),
-	}, C.sizeof_struct_obs_source_info)
+	}, C.sizeof_struct_obs_source_info) //nolint:gocritic // CGo sizeof false positive
 
 	C.obs_frontend_add_event_callback(
 		C.obs_frontend_event_cb(unsafe.Pointer(C.frontend_event_cb)), nil)
