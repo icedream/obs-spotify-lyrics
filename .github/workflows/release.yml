@@ -1,0 +1,43 @@
+name: Release
+on:
+  push:
+    tags:
+      - 'v*'
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Get version
+        id: version
+        run: echo "version=$(git describe --always --tags)" >> $GITHUB_OUTPUT
+
+      - name: Build Linux (amd64)
+        run: |
+          GOOS=linux GOARCH=amd64 go build \
+            -ldflags "-X main.version=${{ steps.version.outputs.version }}" \
+            -o lyrics-linux-amd64 \
+            ./cmd/lyrics/
+
+      - name: Build Windows (amd64)
+        run: |
+          GOOS=windows GOARCH=amd64 go build \
+            -ldflags "-X main.version=${{ steps.version.outputs.version }}" \
+            -o lyrics-windows-amd64.exe \
+            ./cmd/lyrics/
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            lyrics-linux-amd64
+            lyrics-windows-amd64.exe
