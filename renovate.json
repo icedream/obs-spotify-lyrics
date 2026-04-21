@@ -1,0 +1,20 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "regexManagers": [
+    {
+      "description": "Update OBS_VERSION in workflow files and Makefile",
+      "fileMatch": [
+        "^\\.github/workflows/.+\\.ya?ml$",
+        "^Makefile$"
+      ],
+      "matchStrings": [
+        "OBS_VERSION:\\s+\"(?<currentValue>[\\d.]+)\"",
+        "OBS_VERSION \\?=\\s+(?<currentValue>[\\d.]+)"
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "obsproject/obs-studio",
+      "extractVersionTemplate": "^(?<version>.+)$"
+    }
+  ]
+}
