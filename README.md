@@ -1,11 +1,25 @@
 # Spotify lyrics for OBS
 
-If you as a streamer enjoy Karaoke and use Spotify, or if you just want to give
-chat an opportunity to actually understand the lyrics of the Spotify tracks you
-listen to in the background, this is the perfect solution!
+This allows you to repurpose Spotify's existing functionality to render the
+lyrics for the currently playing track in an HTML widget for OBS!
 
-This plugin will render an animated widget with the lyrics for your currently
-playing Spotify track.
+If you as a streamer enjoy Karaoke and use Spotify for it, or if you just want
+to give your stream chat an opportunity to actually understand the lyrics of the
+Spotify tracks you listen to in the background, then this is the perfect
+customizable solution for you.
+
+## What's inside
+
+This comes with everything necessary to render the lyrics of your Spotify tracks
+to the stream:
+
+1.  **Lyrics server** that talks to Spotify to download lyrics for the
+    currently playing song and then serves a WebSocket for the *HTML widget*
+2.  **Customizable HTML widget** that connects to above server to synchronize
+    and render lyrics on screen (you can [roll your own HTML](#roll-your-own-html),
+    too!)
+3.  **OBS plugin** that wraps the above into an easily usable all-in-one
+    package.
 
 ## Requirements
 
