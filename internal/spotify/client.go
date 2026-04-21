@@ -86,7 +86,7 @@ func (c *Client) getLatestSecretKeyVersion() (string, string, error) {
 	if err != nil {
 		return "", "", fmt.Errorf("failed to fetch secret key: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	version, originalSecret, err := decodeLastSecretEntry(resp.Body)
 	if err != nil {
@@ -166,8 +166,8 @@ func generateTOTP(serverTimeSeconds int64, secret string) string {
 		(int64(h[offset+2]&0xFF) << 8) |
 		int64(h[offset+3]&0xFF)
 
-	code %= 1_000_000 // 10^digits
-	return fmt.Sprintf("%06d", code)
+	code %= 1_000_000 // 10^6 (digits)
+	return fmt.Sprintf("%0*d", digits, code)
 }
 
 // getServerTimeParams fetches Spotify's current server time and builds the
@@ -177,7 +177,7 @@ func (c *Client) getServerTimeParams() (url.Values, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch server time: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var st serverTimeResponse
 	if err := json.NewDecoder(resp.Body).Decode(&st); err != nil {
@@ -225,7 +225,7 @@ func (c *Client) refreshToken() error {
 	if err != nil {
 		return fmt.Errorf("token request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var token tokenResponse
 	if err := json.NewDecoder(resp.Body).Decode(&token); err != nil {
