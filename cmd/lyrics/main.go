@@ -3,13 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"syscall"
 
 	"github.com/icedream/spotify-lyrics-widget/internal/browser"
+	"github.com/icedream/spotify-lyrics-widget/internal/logger"
 	"github.com/icedream/spotify-lyrics-widget/internal/spotify"
 	"github.com/kirsle/configdir"
 	"github.com/stoewer/go-strcase"
@@ -52,13 +52,13 @@ func getFlagSources(flagName string) cli.ValueSourceChain {
 func buildClient(c *cli.Command) (*spotify.Client, error) {
 	spDC := c.String(flagSpotifyCookie)
 	if len(spDC) == 0 {
-		log.Println("No sp_dc cookie configured, searching installed browsers...")
+		logger.Info("No sp_dc cookie configured, searching installed browsers...")
 		var err error
 		spDC, err = browser.FindCookie("sp_dc", ".spotify.com")
 		if err != nil {
 			return nil, fmt.Errorf("sp_dc cookie not configured and auto-discovery failed: %w", err)
 		}
-		log.Println("Found sp_dc cookie in browser.")
+		logger.Info("Found sp_dc cookie in browser.")
 	}
 
 	deviceID := c.String(flagSpotifyDeviceID)
@@ -71,7 +71,7 @@ func main() {
 }
 
 func run() (exitCode int) {
-	log.Printf("Spotify lyrics server %s", version)
+	logger.Infof("Spotify lyrics server %s", version)
 	var (
 		flags = []cli.Flag{
 			&cli.StringFlag{
@@ -131,7 +131,7 @@ func run() (exitCode int) {
 
 	err := c.Run(ctx, os.Args)
 	if err != nil {
-		log.Println("Error:", err)
+		logger.Errorf("Error: %v", err)
 		exitCode = 1
 	}
 

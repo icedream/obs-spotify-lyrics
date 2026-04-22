@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/icedream/spotify-lyrics-widget/internal/logger"
 	"github.com/icedream/spotify-lyrics-widget/internal/spotify"
 	cli "github.com/urfave/cli/v3"
 )
@@ -19,13 +19,13 @@ func fetchCurrentlyPlaying(ctx context.Context, c *cli.Command) error {
 	}
 
 np:
-	log.Println("Fetching currently playing...")
+	logger.Debug("Fetching currently playing...")
 	r, err := s.CurrentlyPlaying(ctx)
 	if err != nil {
 		var e *spotify.Error
 		if errors.As(err, &e) && !e.RetryAfter.IsZero() {
 			d := time.Until(e.RetryAfter)
-			log.Println("Waiting", d)
+			logger.Debugf("Waiting %v", d)
 			<-time.After(d)
 			time.Sleep(time.Second * 3)
 			goto np

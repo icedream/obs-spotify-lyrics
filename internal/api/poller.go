@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"log"
 	"strconv"
 	"sync"
 	"time"
 
+	"github.com/icedream/spotify-lyrics-widget/internal/logger"
 	"github.com/icedream/spotify-lyrics-widget/internal/spotify"
 )
 
@@ -116,14 +116,14 @@ func (p *poller) poll(ctx context.Context) time.Duration {
 		var spotifyErr *spotify.Error
 		if errors.As(err, &spotifyErr) && spotifyErr.StatusCode == 429 && !spotifyErr.RetryAfter.IsZero() {
 			wait := time.Until(spotifyErr.RetryAfter) + time.Second
-			log.Printf("rate limited by Spotify, resuming in %v", wait)
+			logger.Warnf("rate limited by Spotify, resuming in %v", wait)
 			return wait
 		}
 		p.mu.Lock()
 		p.retryDelay = min(p.retryDelay*2+time.Second, 30*time.Second)
 		delay := p.retryDelay
 		p.mu.Unlock()
-		log.Printf("poll error: %v (retry in %v)", err, delay)
+		logger.Warnf("poll error: %v (retry in %v)", err, delay)
 		return delay
 	}
 
