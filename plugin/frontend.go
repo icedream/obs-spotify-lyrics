@@ -220,16 +220,10 @@ func dummy_get_props(_ C.uintptr_t) *C.obs_properties_t {
 
 	// About (flat, at the bottom)
 	projURLKeyCS := C.CString("project_url")
-	projURLLabelCS := C.CString(`<a href="https://github.com/icedream/obs-spotify-lyrics">github.com/icedream/obs-spotify-lyrics</a>`)
+	projURLLabelCS := C.CString(`<a href="https://github.com/icedream/obs-spotify-lyrics"><b>Spotify Lyrics for OBS</b></a> · ` + pluginVersion)
 	p = C.obs_properties_add_text(props, projURLKeyCS, projURLLabelCS, C.OBS_TEXT_INFO)
 	C.free(unsafe.Pointer(projURLKeyCS))
 	C.free(unsafe.Pointer(projURLLabelCS))
-	C.obs_property_text_set_info_type(p, C.OBS_TEXT_INFO_NORMAL)
-
-	verKeyCS, verLabelCS := C.CString("version_info"), C.CString("Version: "+pluginVersion)
-	p = C.obs_properties_add_text(props, verKeyCS, verLabelCS, C.OBS_TEXT_INFO)
-	C.free(unsafe.Pointer(verKeyCS))
-	C.free(unsafe.Pointer(verLabelCS))
 	C.obs_property_text_set_info_type(p, C.OBS_TEXT_INFO_NORMAL)
 
 	cfgMu.Lock()
