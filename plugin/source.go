@@ -293,12 +293,16 @@ func source_create(settings *C.obs_data_t, self *C.obs_source_t) C.uintptr_t {
 	}
 
 	if settings != nil {
-		if w := uint32(C.obs_data_get_int(settings, C.CString("width"))); w > 0 {
+		widthCS := C.CString("width")
+		if w := uint32(C.obs_data_get_int(settings, widthCS)); w > 0 {
 			s.width = w
 		}
-		if h := uint32(C.obs_data_get_int(settings, C.CString("height"))); h > 0 {
+		C.free(unsafe.Pointer(widthCS))
+		heightCS := C.CString("height")
+		if h := uint32(C.obs_data_get_int(settings, heightCS)); h > 0 {
 			s.height = h
 		}
+		C.free(unsafe.Pointer(heightCS))
 		modeCS := C.CString("css_mode")
 		if m := C.GoString(C.obs_data_get_string(settings, modeCS)); m != "" {
 			s.cssMode = m
@@ -364,9 +368,17 @@ func source_get_height(data C.uintptr_t) C.uint32_t {
 
 //export source_get_defaults
 func source_get_defaults(settings *C.obs_data_t) {
-	C.obs_data_set_default_int(settings, C.CString("width"), 1920)
-	C.obs_data_set_default_int(settings, C.CString("height"), 1080)
-	C.obs_data_set_default_string(settings, C.CString("css_mode"), C.CString("simple"))
+	widthCS := C.CString("width")
+	defer C.free(unsafe.Pointer(widthCS))
+	heightCS := C.CString("height")
+	defer C.free(unsafe.Pointer(heightCS))
+	cssModeCS := C.CString("css_mode")
+	defer C.free(unsafe.Pointer(cssModeCS))
+	simpleCS := C.CString("simple")
+	defer C.free(unsafe.Pointer(simpleCS))
+	C.obs_data_set_default_int(settings, widthCS, 1920)
+	C.obs_data_set_default_int(settings, heightCS, 1080)
+	C.obs_data_set_default_string(settings, cssModeCS, simpleCS)
 	for _, v := range widget.CSSVars {
 		keyCS := C.CString(v.Key)
 		switch v.Type {
@@ -413,8 +425,14 @@ func source_get_props(data C.uintptr_t) *C.obs_properties_t {
 	props := C.obs_properties_create()
 	// No DEFER_UPDATE here, we want live preview as fields change
 
-	C.obs_properties_add_int(props, C.CString("width"), C.CString("Width"), 1, 7680, 1)
-	C.obs_properties_add_int(props, C.CString("height"), C.CString("Height"), 1, 4320, 1)
+	widthKeyCS, widthLabelCS := C.CString("width"), C.CString("Width")
+	C.obs_properties_add_int(props, widthKeyCS, widthLabelCS, 1, 7680, 1)
+	C.free(unsafe.Pointer(widthKeyCS))
+	C.free(unsafe.Pointer(widthLabelCS))
+	heightKeyCS, heightLabelCS := C.CString("height"), C.CString("Height")
+	C.obs_properties_add_int(props, heightKeyCS, heightLabelCS, 1, 4320, 1)
+	C.free(unsafe.Pointer(heightKeyCS))
+	C.free(unsafe.Pointer(heightLabelCS))
 
 	s.mu.Lock()
 	url := s.url
@@ -425,19 +443,31 @@ func source_get_props(data C.uintptr_t) *C.obs_properties_t {
 	if url != "" {
 		infoLabel = fmt.Sprintf("Widget URL: %s/", url)
 	}
-	p := C.obs_properties_add_text(props, C.CString("url_info"), C.CString(infoLabel), C.OBS_TEXT_INFO)
+	urlInfoKeyCS, urlInfoLabelCS := C.CString("url_info"), C.CString(infoLabel)
+	p := C.obs_properties_add_text(props, urlInfoKeyCS, urlInfoLabelCS, C.OBS_TEXT_INFO)
+	C.free(unsafe.Pointer(urlInfoKeyCS))
+	C.free(unsafe.Pointer(urlInfoLabelCS))
 	C.obs_property_text_set_info_type(p, C.OBS_TEXT_INFO_NORMAL)
 
 	/* Style / CSS customization */
+	cssModeKeyCS, cssModeListLabelCS := C.CString("css_mode"), C.CString("Style")
 	modeList := C.obs_properties_add_list(
 		props,
-		C.CString("css_mode"),
-		C.CString("Style"),
+		cssModeKeyCS,
+		cssModeListLabelCS,
 		C.OBS_COMBO_TYPE_LIST,
 		C.OBS_COMBO_FORMAT_STRING,
 	)
-	C.obs_property_list_add_string(modeList, C.CString("Simple (CSS variables)"), C.CString("simple"))
-	C.obs_property_list_add_string(modeList, C.CString("Custom CSS"), C.CString("advanced"))
+	C.free(unsafe.Pointer(cssModeKeyCS))
+	C.free(unsafe.Pointer(cssModeListLabelCS))
+	simpleLabelCS, simpleValCS := C.CString("Simple (CSS variables)"), C.CString("simple")
+	C.obs_property_list_add_string(modeList, simpleLabelCS, simpleValCS)
+	C.free(unsafe.Pointer(simpleLabelCS))
+	C.free(unsafe.Pointer(simpleValCS))
+	advancedLabelCS, advancedValCS := C.CString("Custom CSS"), C.CString("advanced")
+	C.obs_property_list_add_string(modeList, advancedLabelCS, advancedValCS)
+	C.free(unsafe.Pointer(advancedLabelCS))
+	C.free(unsafe.Pointer(advancedValCS))
 	C.obs_property_set_modified_callback(modeList, C.obs_property_modified_t(unsafe.Pointer(C.source_css_mode_changed_cb)))
 
 	// Add CSS variable fields, creating OBS property groups on first encounter.
@@ -489,8 +519,14 @@ func source_get_props(data C.uintptr_t) *C.obs_properties_t {
 		C.free(unsafe.Pointer(keyCS))
 		C.free(unsafe.Pointer(labelCS))
 	}
-	C.obs_properties_add_text(props, C.CString("css_extra"), C.CString("Additional CSS"), C.OBS_TEXT_MULTILINE)
-	C.obs_properties_add_text(props, C.CString("css_advanced"), C.CString("Custom CSS"), C.OBS_TEXT_MULTILINE)
+	cssExtraKeyCS, cssExtraLabelCS := C.CString("css_extra"), C.CString("Additional CSS")
+	C.obs_properties_add_text(props, cssExtraKeyCS, cssExtraLabelCS, C.OBS_TEXT_MULTILINE)
+	C.free(unsafe.Pointer(cssExtraKeyCS))
+	C.free(unsafe.Pointer(cssExtraLabelCS))
+	cssAdvancedKeyCS, cssAdvancedLabelCS := C.CString("css_advanced"), C.CString("Custom CSS")
+	C.obs_properties_add_text(props, cssAdvancedKeyCS, cssAdvancedLabelCS, C.OBS_TEXT_MULTILINE)
+	C.free(unsafe.Pointer(cssAdvancedKeyCS))
+	C.free(unsafe.Pointer(cssAdvancedLabelCS))
 
 	if cssMode == "" {
 		cssMode = "simple"

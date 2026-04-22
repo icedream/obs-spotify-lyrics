@@ -113,11 +113,29 @@ func open_props_on_ui_thread(_ C.uintptr_t) {
 
 //export dummy_get_defaults
 func dummy_get_defaults(settings *C.obs_data_t) {
-	C.obs_data_set_default_string(settings, C.CString("mode"), C.CString(modeInternal))
-	C.obs_data_set_default_int(settings, C.CString("port"), 0)
-	C.obs_data_set_default_string(settings, C.CString("sp_dc"), C.CString(""))
-	C.obs_data_set_default_string(settings, C.CString("device_id"), C.CString(""))
-	C.obs_data_set_default_string(settings, C.CString("external_url"), C.CString(""))
+	modeKeyCS := C.CString("mode")
+	defer C.free(unsafe.Pointer(modeKeyCS))
+	modeValCS := C.CString(modeInternal)
+	defer C.free(unsafe.Pointer(modeValCS))
+	portKeyCS := C.CString("port")
+	defer C.free(unsafe.Pointer(portKeyCS))
+	spDCKeyCS := C.CString("sp_dc")
+	defer C.free(unsafe.Pointer(spDCKeyCS))
+	spDCValCS := C.CString("")
+	defer C.free(unsafe.Pointer(spDCValCS))
+	deviceIDKeyCS := C.CString("device_id")
+	defer C.free(unsafe.Pointer(deviceIDKeyCS))
+	deviceIDValCS := C.CString("")
+	defer C.free(unsafe.Pointer(deviceIDValCS))
+	extURLKeyCS := C.CString("external_url")
+	defer C.free(unsafe.Pointer(extURLKeyCS))
+	extURLValCS := C.CString("")
+	defer C.free(unsafe.Pointer(extURLValCS))
+	C.obs_data_set_default_string(settings, modeKeyCS, modeValCS)
+	C.obs_data_set_default_int(settings, portKeyCS, 0)
+	C.obs_data_set_default_string(settings, spDCKeyCS, spDCValCS)
+	C.obs_data_set_default_string(settings, deviceIDKeyCS, deviceIDValCS)
+	C.obs_data_set_default_string(settings, extURLKeyCS, extURLValCS)
 }
 
 //export dummy_get_props
@@ -125,20 +143,38 @@ func dummy_get_props(_ C.uintptr_t) *C.obs_properties_t {
 	props := C.obs_properties_create()
 	C.obs_properties_set_flags(props, C.OBS_PROPERTIES_DEFER_UPDATE)
 
+	modeKeyCS, modeLabelCS := C.CString("mode"), C.CString("Mode")
 	modeList := C.obs_properties_add_list(
 		props,
-		C.CString("mode"),
-		C.CString("Mode"),
+		modeKeyCS,
+		modeLabelCS,
 		C.OBS_COMBO_TYPE_LIST,
 		C.OBS_COMBO_FORMAT_STRING,
 	)
-	C.obs_property_list_add_string(modeList, C.CString("Internal server"), C.CString(modeInternal))
-	C.obs_property_list_add_string(modeList, C.CString("External server"), C.CString(modeExternal))
+	C.free(unsafe.Pointer(modeKeyCS))
+	C.free(unsafe.Pointer(modeLabelCS))
+	internalLabelCS, internalValCS := C.CString("Internal server"), C.CString(modeInternal)
+	C.obs_property_list_add_string(modeList, internalLabelCS, internalValCS)
+	C.free(unsafe.Pointer(internalLabelCS))
+	C.free(unsafe.Pointer(internalValCS))
+	externalLabelCS, externalValCS := C.CString("External server"), C.CString(modeExternal)
+	C.obs_property_list_add_string(modeList, externalLabelCS, externalValCS)
+	C.free(unsafe.Pointer(externalLabelCS))
+	C.free(unsafe.Pointer(externalValCS))
 	C.obs_property_set_modified_callback(modeList, C.obs_property_modified_t(unsafe.Pointer(C.mode_changed_cb)))
 
-	C.obs_properties_add_int(props, C.CString("port"), C.CString("Port (0 = automatic)"), 0, 65535, 1)
-	C.obs_properties_add_text(props, C.CString("sp_dc"), C.CString("sp_dc cookie (auto-discover if empty)"), C.OBS_TEXT_PASSWORD)
-	C.obs_properties_add_text(props, C.CString("device_id"), C.CString("Device ID (random if empty)"), C.OBS_TEXT_DEFAULT)
+	portKeyCS, portLabelCS := C.CString("port"), C.CString("Port (0 = automatic)")
+	C.obs_properties_add_int(props, portKeyCS, portLabelCS, 0, 65535, 1)
+	C.free(unsafe.Pointer(portKeyCS))
+	C.free(unsafe.Pointer(portLabelCS))
+	spDCKeyCS, spDCLabelCS := C.CString("sp_dc"), C.CString("sp_dc cookie (auto-discover if empty)")
+	C.obs_properties_add_text(props, spDCKeyCS, spDCLabelCS, C.OBS_TEXT_PASSWORD)
+	C.free(unsafe.Pointer(spDCKeyCS))
+	C.free(unsafe.Pointer(spDCLabelCS))
+	deviceIDKeyCS, deviceIDLabelCS := C.CString("device_id"), C.CString("Device ID (random if empty)")
+	C.obs_properties_add_text(props, deviceIDKeyCS, deviceIDLabelCS, C.OBS_TEXT_DEFAULT)
+	C.free(unsafe.Pointer(deviceIDKeyCS))
+	C.free(unsafe.Pointer(deviceIDLabelCS))
 
 	srvMu.Lock()
 	url := widgetBaseURL
@@ -157,10 +193,16 @@ func dummy_get_props(_ C.uintptr_t) *C.obs_properties_t {
 		statusMsg = "Server not running."
 		infoType = C.OBS_TEXT_INFO_NORMAL
 	}
-	p := C.obs_properties_add_text(props, C.CString("status_info"), C.CString(statusMsg), C.OBS_TEXT_INFO)
+	statusInfoKeyCS, statusInfoLabelCS := C.CString("status_info"), C.CString(statusMsg)
+	p := C.obs_properties_add_text(props, statusInfoKeyCS, statusInfoLabelCS, C.OBS_TEXT_INFO)
+	C.free(unsafe.Pointer(statusInfoKeyCS))
+	C.free(unsafe.Pointer(statusInfoLabelCS))
 	C.obs_property_text_set_info_type(p, infoType)
 
-	C.obs_properties_add_text(props, C.CString("external_url"), C.CString("External server URL"), C.OBS_TEXT_DEFAULT)
+	extURLKeyCS, extURLLabelCS := C.CString("external_url"), C.CString("External server URL")
+	C.obs_properties_add_text(props, extURLKeyCS, extURLLabelCS, C.OBS_TEXT_DEFAULT)
+	C.free(unsafe.Pointer(extURLKeyCS))
+	C.free(unsafe.Pointer(extURLLabelCS))
 
 	cfgMu.Lock()
 	mode := cfg.Mode
@@ -172,11 +214,21 @@ func dummy_get_props(_ C.uintptr_t) *C.obs_properties_t {
 
 //export dummy_update
 func dummy_update(_ C.uintptr_t, settings *C.obs_data_t) {
-	newMode := C.GoString(C.obs_data_get_string(settings, C.CString("mode")))
-	newPort := int(C.obs_data_get_int(settings, C.CString("port")))
-	newSpDC := C.GoString(C.obs_data_get_string(settings, C.CString("sp_dc")))
-	newDevID := C.GoString(C.obs_data_get_string(settings, C.CString("device_id")))
-	newExtURL := C.GoString(C.obs_data_get_string(settings, C.CString("external_url")))
+	modeKeyCS := C.CString("mode")
+	defer C.free(unsafe.Pointer(modeKeyCS))
+	portKeyCS := C.CString("port")
+	defer C.free(unsafe.Pointer(portKeyCS))
+	spDCKeyCS := C.CString("sp_dc")
+	defer C.free(unsafe.Pointer(spDCKeyCS))
+	deviceIDKeyCS := C.CString("device_id")
+	defer C.free(unsafe.Pointer(deviceIDKeyCS))
+	extURLKeyCS := C.CString("external_url")
+	defer C.free(unsafe.Pointer(extURLKeyCS))
+	newMode := C.GoString(C.obs_data_get_string(settings, modeKeyCS))
+	newPort := int(C.obs_data_get_int(settings, portKeyCS))
+	newSpDC := C.GoString(C.obs_data_get_string(settings, spDCKeyCS))
+	newDevID := C.GoString(C.obs_data_get_string(settings, deviceIDKeyCS))
+	newExtURL := C.GoString(C.obs_data_get_string(settings, extURLKeyCS))
 
 	if newPort < 0 {
 		newPort = 0
