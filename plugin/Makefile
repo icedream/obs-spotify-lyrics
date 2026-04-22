@@ -12,7 +12,8 @@ all: $(PLUGIN_SO)
 $(PLUGIN_SO):
 	CGO_CFLAGS="$(CGO_CFLAGS)" CGO_LDFLAGS="$(CGO_LDFLAGS)" \
 		go build -buildmode=c-shared \
-		-ldflags="-X main.pluginVersion=$(VERSION)" \
+		-trimpath \
+		-ldflags="-s -w -X main.pluginVersion=$(VERSION)" \
 		-o $@ .
 
 .PHONY: install
