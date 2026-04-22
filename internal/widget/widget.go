@@ -22,7 +22,7 @@ type CSSVarDef struct {
 	Label  string // human-readable OBS UI label, e.g. "Font family"
 	DefVal string // default value as written in :root, e.g. "'Segoe UI', system-ui, sans-serif"
 	Group  string // OBS property group name; empty = top-level
-	Type   string // OBS input type: "" (text), "color-alpha"
+	Type   string // OBS input type: "" (text), "color-alpha", "font"
 }
 
 // CSSVars is the ordered list of CSS variables parsed from the widget HTML at
@@ -39,7 +39,8 @@ func init() { CSSVars = ParseCSSVars(HTML) }
 //
 // and returns a CSSVarDef for each. Lines without the annotation are skipped.
 // The OBS settings key is derived mechanically: "--font-family" -> "css_font_family".
-// Supported types: "" (text field, default), "color-alpha" (color picker with alpha).
+// Supported types: "" (text field, default), "color-alpha" (color picker with alpha),
+// "font" (OBS font picker; DefVal is ignored, value expands to multiple CSS sub-vars).
 func ParseCSSVars(html []byte) []CSSVarDef {
 	var out []CSSVarDef
 	for _, line := range strings.Split(string(html), "\n") {
