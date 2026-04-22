@@ -178,8 +178,8 @@ func buildCSSFromSettings(settings *C.obs_data_t) string {
 		switch v.Type {
 		case "color-alpha":
 			raw := uint32(C.obs_data_get_int(settings, keyCS))
-			if raw == 0 {
-				// Default was never applied; fall back to parsed CSS default.
+			if !C.obs_data_has_user_value(settings, keyCS) {
+				// Value was never explicitly set; fall back to parsed CSS default.
 				if parsed, ok := obscolor.FromCSS(v.DefVal); ok {
 					raw = parsed
 				}
