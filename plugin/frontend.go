@@ -143,21 +143,6 @@ func dummy_get_props(_ C.uintptr_t) *C.obs_properties_t {
 	props := C.obs_properties_create()
 	C.obs_properties_set_flags(props, C.OBS_PROPERTIES_DEFER_UPDATE)
 
-	// Spotify group
-	spotifyProps := C.obs_properties_create()
-	spDCKeyCS, spDCLabelCS := C.CString("sp_dc"), C.CString("sp_dc cookie (auto-detect if empty)")
-	C.obs_properties_add_text(spotifyProps, spDCKeyCS, spDCLabelCS, C.OBS_TEXT_PASSWORD)
-	C.free(unsafe.Pointer(spDCKeyCS))
-	C.free(unsafe.Pointer(spDCLabelCS))
-	deviceIDKeyCS, deviceIDLabelCS := C.CString("device_id"), C.CString("Device ID (random if empty)")
-	C.obs_properties_add_text(spotifyProps, deviceIDKeyCS, deviceIDLabelCS, C.OBS_TEXT_DEFAULT)
-	C.free(unsafe.Pointer(deviceIDKeyCS))
-	C.free(unsafe.Pointer(deviceIDLabelCS))
-	spotifyGrpKeyCS, spotifyGrpLabelCS := C.CString("grp_spotify"), C.CString("Spotify")
-	C.obs_properties_add_group(props, spotifyGrpKeyCS, spotifyGrpLabelCS, C.OBS_GROUP_NORMAL, spotifyProps)
-	C.free(unsafe.Pointer(spotifyGrpKeyCS))
-	C.free(unsafe.Pointer(spotifyGrpLabelCS))
-
 	// Webserver group
 	wsProps := C.obs_properties_create()
 	modeKeyCS, modeLabelCS := C.CString("mode"), C.CString("Mode")
@@ -217,6 +202,21 @@ func dummy_get_props(_ C.uintptr_t) *C.obs_properties_t {
 	C.obs_properties_add_group(props, wsGrpKeyCS, wsGrpLabelCS, C.OBS_GROUP_NORMAL, wsProps)
 	C.free(unsafe.Pointer(wsGrpKeyCS))
 	C.free(unsafe.Pointer(wsGrpLabelCS))
+
+	// Spotify group
+	spotifyProps := C.obs_properties_create()
+	spDCKeyCS, spDCLabelCS := C.CString("sp_dc"), C.CString("sp_dc cookie (auto-detect if empty)")
+	C.obs_properties_add_text(spotifyProps, spDCKeyCS, spDCLabelCS, C.OBS_TEXT_PASSWORD)
+	C.free(unsafe.Pointer(spDCKeyCS))
+	C.free(unsafe.Pointer(spDCLabelCS))
+	deviceIDKeyCS, deviceIDLabelCS := C.CString("device_id"), C.CString("Device ID (random if empty)")
+	C.obs_properties_add_text(spotifyProps, deviceIDKeyCS, deviceIDLabelCS, C.OBS_TEXT_DEFAULT)
+	C.free(unsafe.Pointer(deviceIDKeyCS))
+	C.free(unsafe.Pointer(deviceIDLabelCS))
+	spotifyGrpKeyCS, spotifyGrpLabelCS := C.CString("grp_spotify"), C.CString("Spotify")
+	C.obs_properties_add_group(props, spotifyGrpKeyCS, spotifyGrpLabelCS, C.OBS_GROUP_NORMAL, spotifyProps)
+	C.free(unsafe.Pointer(spotifyGrpKeyCS))
+	C.free(unsafe.Pointer(spotifyGrpLabelCS))
 
 	// About (flat, at the bottom)
 	projURLKeyCS := C.CString("project_url")
