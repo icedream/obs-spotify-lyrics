@@ -11,6 +11,7 @@
 
 VERSION     ?= $(shell git describe --always --tags 2>/dev/null || echo dev)
 OBS_VERSION ?= 32.1.1
+MAKENSIS    ?= makensis
 
 # Set UPX= to the upx binary (e.g. make UPX=upx ...) to enable optional
 # compression of standalone binaries after stripping. Disabled by default.
@@ -22,7 +23,7 @@ OBS_WIN_SRC := obs-src
 OBS_WIN_SDK := obs-win-sdk
 
 .PHONY: all
-all: build-binary-linux-amd64 build-binary-linux-arm64 build-binary-windows-amd64 build-binary-windows-arm64 build-plugin-linux-amd64 build-plugin-linux-arm64 build-plugin-windows-amd64
+all: build-binary-linux-amd64 build-binary-linux-arm64 build-binary-windows-amd64 build-binary-windows-arm64 build-plugin-linux-amd64 build-plugin-linux-arm64 build-plugin-windows-amd64 build-installer-windows-amd64
 
 ###############################################################################
 # Binary
@@ -116,10 +117,16 @@ build-plugin-windows-amd64: $(OBS_WIN_SRC)/.stamp $(OBS_WIN_SDK)/.stamp
 		-ldflags "-s -w -X main.pluginVersion=$(VERSION)" \
 		-o spotify-lyrics-windows-amd64.dll ./plugin/
 
-.PHONY: clean
+.PHONY: build-installer-windows-amd64
+build-installer-windows-amd64: build-binary-windows-amd64 build-plugin-windows-amd64
+	$(MAKENSIS) -DVERSION=$(VERSION) installer/spotify-lyrics.nsi
+
+###############################################################################
+# Cleanup
 clean:
 	rm -f lyrics-linux-amd64 lyrics-linux-arm64
 	rm -f lyrics-windows-amd64.exe lyrics-windows-arm64.exe
 	rm -f spotify-lyrics-linux-amd64.so spotify-lyrics-linux-arm64.so
 	rm -f spotify-lyrics-windows-amd64.dll spotify-lyrics-windows-amd64.h
+	rm -f obs-spotify-lyrics-*-setup.exe
 	rm -rf $(OBS_WIN_SRC) $(OBS_WIN_SDK) obs-win.zip obs-win-tmp
