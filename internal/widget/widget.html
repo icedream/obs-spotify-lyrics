@@ -38,10 +38,14 @@
       --adjacent-decoration: none;
 
       /* Current (active) lyric line */
-      --current-color:   #ffffff;                         /* obs: Color | Active line | color-alpha */
+      --current-color:          #ffffff;                  /* obs: Color | Active line | color-alpha */
+      --current-stroke-width:   0px;                      /* obs: Outline width | Active line | number:px+ */
+      --current-stroke-color:   #000000;                  /* obs: Outline color | Active line | color-alpha */
 
       /* Previous and next lines (dimmed context) */
-      --adjacent-color:  rgba(255, 255, 255, 0.45);       /* obs: Color | Adjacent lines | color-alpha */
+      --adjacent-color:         rgba(255, 255, 255, 0.45); /* obs: Color | Adjacent lines | color-alpha */
+      --adjacent-stroke-width:  0px;                      /* obs: Outline width | Adjacent lines | number:px+ */
+      --adjacent-stroke-color:  #000000;                  /* obs: Outline color | Adjacent lines | color-alpha */
 
       /* Height of each line slot. Must comfortably fit --current-size. */
       --row-height:      64px;                              /* obs: Row height | Layout | number:px+ */
@@ -118,21 +122,27 @@
     }
 
     .line.current {
-      color:           var(--current-color);
-      font-family:     var(--current-family);
-      font-size:       var(--current-size);
-      font-weight:     var(--current-weight);
-      font-style:      var(--current-style);
-      text-decoration: var(--current-decoration);
+      color:                    var(--current-color);
+      font-family:              var(--current-family);
+      font-size:                var(--current-size);
+      font-weight:              var(--current-weight);
+      font-style:               var(--current-style);
+      text-decoration:          var(--current-decoration);
+      -webkit-text-stroke-width: var(--current-stroke-width);
+      -webkit-text-stroke-color: var(--current-stroke-color);
+      paint-order:              stroke fill;
     }
 
     .line.adjacent {
-      color:           var(--adjacent-color);
-      font-family:     var(--adjacent-family);
-      font-size:       var(--adjacent-size);
-      font-weight:     var(--adjacent-weight);
-      font-style:      var(--adjacent-style);
-      text-decoration: var(--adjacent-decoration);
+      color:                    var(--adjacent-color);
+      font-family:              var(--adjacent-family);
+      font-size:                var(--adjacent-size);
+      font-weight:              var(--adjacent-weight);
+      font-style:               var(--adjacent-style);
+      text-decoration:          var(--adjacent-decoration);
+      -webkit-text-stroke-width: var(--adjacent-stroke-width);
+      -webkit-text-stroke-color: var(--adjacent-stroke-color);
+      paint-order:              stroke fill;
 
       z-index: -100;
     }
