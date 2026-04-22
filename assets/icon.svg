@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="currentColor">
+  <!--
+    Spotify Lyrics Widget icon.
+
+    This icon is a combination of an eighth musical note to the left and three
+    text lines for the lyrics to the right.
+
+    This icon is meant to be monochrome, it renders correctly with any solid
+    fill, e.g. `fill="currentColor"`.
+  -->
+
+  <!-- Note head -->
+  <ellipse cx="12.79" cy="48.3" rx="9" ry="6.5" transform="rotate(-20 13 47)"/>
+  <!-- Stem + flag as one path to avoid anti-aliasing seam -->
+  <path d="M19 12 L22 12 C35 15 37 27 26 35 C31 25 29 16 22 18 L22 47 L19 47 Z"/>
+
+  <!-- Lyric text lines — varying widths give a natural subtitle feel -->
+  <rect x="30" y="32" width="32" height="4" rx="2"/>
+  <rect x="30" y="39" width="23" height="4" rx="2"/>
+  <rect x="30" y="46" width="27" height="4" rx="2"/>
+</svg>

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!--
+    Uninstaller icon: app logo crossed out with a red X.
+  -->
+
+  <!-- Logo (same as icon-app.svg) -->
+  <ellipse cx="12.79" cy="48.3" rx="9" ry="6.5" transform="rotate(-20 13 47)" fill="#1DB954"/>
+  <!-- Stem + flag as one path to avoid anti-aliasing seam -->
+  <path d="M19 12 L22 12 C35 15 37 27 26 35 C31 25 29 16 22 18 L22 47 L19 47 Z" fill="#1DB954"/>
+  <rect x="30" y="32" width="32" height="4" rx="2" fill="#81BB96"/>
+  <rect x="30" y="39" width="23" height="4" rx="2" fill="#A4E4BB"/>
+  <rect x="30" y="46" width="27" height="4" rx="2" fill="#81BB96"/>
+
+  <!-- Red X crossing out the logo -->
+  <line x1="6" y1="6" x2="58" y2="58" stroke="#E53535" stroke-width="7" stroke-linecap="round"/>
+  <line x1="58" y1="6" x2="6" y2="58" stroke="#E53535" stroke-width="7" stroke-linecap="round"/>
+</svg>

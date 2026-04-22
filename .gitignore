@@ -12,6 +12,13 @@ spotify-lyrics-*.dll
 # Installer outputs
 obs-spotify-lyrics-*-setup.exe
 
+# Generated intermediate assets
+assets/.build/
+assets/*.png
+
+# Generated Go resource files (go generate in cmd/lyrics)
+cmd/lyrics/gen_*.syso
+
 # Downloaded SDKs
 obs-src/
 obs-win-sdk/

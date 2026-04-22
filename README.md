@@ -1,7 +1,8 @@
-# Spotify lyrics for OBS
-
-This allows you to repurpose Spotify's existing functionality to render the
-lyrics for the currently playing track in an HTML widget for OBS!
+<div align="center">
+  <img src="assets/icon-app.svg" width="96" alt=""><br>
+  <h1>Spotify Lyrics for OBS</h1>
+  <p>Display the currently playing Spotify track's lyrics as a customizable HTML widget right inside OBS Studio.</p>
+</div>
 
 If you as a streamer enjoy Karaoke and use Spotify for it, or if you just want
 to give your stream chat an opportunity to actually understand the lyrics of the

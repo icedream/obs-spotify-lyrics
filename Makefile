@@ -45,8 +45,12 @@ build-binary-linux-arm64:
 		-o lyrics-linux-arm64 ./cmd/lyrics/
 	$(if $(UPX),$(UPX) --lzma lyrics-linux-arm64)
 
+cmd/lyrics/gen_resource_windows_amd64.syso cmd/lyrics/gen_resource_windows_arm64.syso &: cmd/lyrics/versioninfo.json assets/icon.ico
+	go tool goversioninfo -64      -file-version "$(VERSION)" -product-version "$(VERSION)" -icon assets/icon.ico -o cmd/lyrics/gen_resource_windows_amd64.syso cmd/lyrics/versioninfo.json
+	go tool goversioninfo -64 -arm -file-version "$(VERSION)" -product-version "$(VERSION)" -icon assets/icon.ico -o cmd/lyrics/gen_resource_windows_arm64.syso cmd/lyrics/versioninfo.json
+
 .PHONY: build-binary-windows-amd64
-build-binary-windows-amd64:
+build-binary-windows-amd64: cmd/lyrics/gen_resource_windows_amd64.syso
 	GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build \
 		-trimpath \
 		-ldflags "-s -w -X main.version=$(VERSION)" \
@@ -54,7 +58,7 @@ build-binary-windows-amd64:
 	$(if $(UPX),$(UPX) --lzma lyrics-windows-amd64.exe)
 
 .PHONY: build-binary-windows-arm64
-build-binary-windows-arm64:
+build-binary-windows-arm64: cmd/lyrics/gen_resource_windows_arm64.syso
 	GOOS=windows GOARCH=arm64 CGO_ENABLED=0 go build \
 		-trimpath \
 		-ldflags "-s -w -X main.version=$(VERSION)" \
@@ -140,11 +144,11 @@ clean-binary-linux-arm64:
 
 .PHONY: clean-binary-windows-amd64
 clean-binary-windows-amd64:
-	rm -f lyrics-windows-amd64.exe
+	rm -f lyrics-windows-amd64.exe cmd/lyrics/gen_resource_windows_amd64.syso
 
 .PHONY: clean-binary-windows-arm64
 clean-binary-windows-arm64:
-	rm -f lyrics-windows-arm64.exe
+	rm -f lyrics-windows-arm64.exe cmd/lyrics/gen_resource_windows_arm64.syso
 
 .PHONY: clean-plugin-linux-amd64
 clean-plugin-linux-amd64:

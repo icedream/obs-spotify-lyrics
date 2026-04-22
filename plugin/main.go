@@ -117,6 +117,7 @@ func obs_module_load() C.bool {
 	C.obs_register_source_s(&C.struct_obs_source_info{
 		id:                  sourceIDStr,
 		_type:               C.OBS_SOURCE_TYPE_INPUT,
+		icon_type:           C.OBS_ICON_TYPE_BROWSER,
 		output_flags:        C.OBS_SOURCE_VIDEO | C.OBS_SOURCE_CUSTOM_DRAW,
 		get_name:            C.get_name_t(unsafe.Pointer(C.source_get_name)),
 		create:              C.source_create_t(unsafe.Pointer(C.source_create)),

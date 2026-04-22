@@ -28,6 +28,14 @@ Var OBSWasRunning
 ; MUI settings
 ; ---------------------------------------------------------------------------
 !define MUI_ABORTWARNING
+!define MUI_ICON   "..\assets\icon-install.ico"
+!define MUI_UNICON "..\assets\icon-uninstall.ico"
+!define MUI_WELCOMEFINISHPAGE_BITMAP "..\assets\installer-sidebar.bmp"
+!define MUI_HEADERIMAGE
+!define MUI_HEADERIMAGE_BITMAP        "..\assets\installer-header.bmp"
+!define MUI_HEADERIMAGE_RIGHT
+!define MUI_BGCOLOR                   "0a1a14"
+!define MUI_TEXTCOLOR                 "cceecc"
 
 ; ---------------------------------------------------------------------------
 ; Pages
