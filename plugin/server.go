@@ -39,8 +39,7 @@ func serverStart(port int, spDC, deviceID string) error {
 		if err != nil {
 			log.Printf("spotify-lyrics plugin: sp_dc auto-discovery failed: %v", err)
 			srvMu.Lock()
-			serverLastError = fmt.Sprintf(
-				"sp_dc cookie not found, please enter it in the plugin settings (auto-discovery: %v)", err)
+			serverLastError = "sp_dc cookie not found, please enter it in the plugin settings"
 			srvMu.Unlock()
 			return err
 		}
