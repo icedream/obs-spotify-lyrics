@@ -38,10 +38,10 @@
       --adjacent-decoration: none;
 
       /* Current (active) lyric line */
-      --current-color:   #ffffff;                           /* obs: Color | Active line | color-alpha */
+      --current-color:   #ffffff;                         /* obs: Color | Active line | color-alpha */
 
       /* Previous and next lines (dimmed context) */
-      --adjacent-color:  rgba(255, 255, 255, 0.45);         /* obs: Color | Adjacent lines | color-alpha */
+      --adjacent-color:  rgba(255, 255, 255, 0.45);       /* obs: Color | Adjacent lines | color-alpha */
 
       /* Height of each line slot. Must comfortably fit --current-size. */
       --row-height:      4rem;                              /* obs: Row height */
@@ -50,7 +50,11 @@
       --padding:         0 1rem;                            /* obs: Padding */
 
       --max-width:       80vw;                              /* obs: Max width */
-      --text-shadow:     0 2px 10px rgba(0, 0, 0, 0.8);    /* obs: Text shadow */
+
+      --text-shadow-x:     0px;                             /* obs: X offset | Text shadow */
+      --text-shadow-y:     2px;                             /* obs: Y offset | Text shadow */
+      --text-shadow-blur:  10px;                            /* obs: Blur radius | Text shadow */
+      --text-shadow-color: rgba(0, 0, 0, 0.8);            /* obs: Color | Text shadow | color-alpha */
 
       /* Duration of the scroll animation */
       --scroll-duration: 0.35s;                             /* obs: Scroll duration | Animation */
@@ -104,7 +108,7 @@
 
     .line {
       text-align: center;
-      text-shadow: var(--text-shadow);
+      text-shadow: var(--text-shadow-x) var(--text-shadow-y) var(--text-shadow-blur) var(--text-shadow-color);
       white-space: pre-wrap;
       word-break: break-word;
       line-height: 1.3;
