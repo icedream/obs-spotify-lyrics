@@ -18,6 +18,8 @@ import (
 	"strings"
 	"sync"
 	"unsafe"
+
+	"github.com/icedream/spotify-lyrics-widget/internal/widget"
 )
 
 /* lyricsSource represents one "Spotify Lyrics" source instance. */
@@ -40,28 +42,8 @@ var (
 	sources   []*lyricsSource
 )
 
-/* CSS variable definitions, kept in display order */
-
-var cssVarDefs = []struct {
-	key    string // OBS settings key
-	prop   string // CSS custom property name
-	label  string // label shown in OBS properties
-	defVal string // mirrors the :root default in widget.html
-}{
-	{"css_font_family", "--font-family", "Font family", "'Segoe UI', system-ui, sans-serif"},
-	{"css_current_color", "--current-color", "Active line: color", "#ffffff"},
-	{"css_current_size", "--current-size", "Active line: font size", "2.2rem"},
-	{"css_current_weight", "--current-weight", "Active line: font weight", "700"},
-	{"css_adjacent_color", "--adjacent-color", "Adjacent lines: color", "rgba(255, 255, 255, 0.45)"},
-	{"css_adjacent_size", "--adjacent-size", "Adjacent lines: font size", "1.4rem"},
-	{"css_adjacent_weight", "--adjacent-weight", "Adjacent lines: font weight", "400"},
-	{"css_row_height", "--row-height", "Row height", "4rem"},
-	{"css_padding", "--padding", "Padding", "0 1rem"},
-	{"css_max_width", "--max-width", "Max width", "80vw"},
-	{"css_text_shadow", "--text-shadow", "Text shadow", "0 2px 10px rgba(0, 0, 0, 0.8)"},
-	{"css_scroll_duration", "--scroll-duration", "Scroll animation duration", "0.35s"},
-	{"css_fadeout_duration", "--fadeout-duration", "Fade-out duration", "1.5s"},
-}
+/* CSS variable definitions are parsed from the :root block in widget.html
+   at init time via widget.CSSVars. See internal/widget/widget.go. */
 
 // buildCSSFromSettings builds the CSS string to inject into the nested browser_source.
 func buildCSSFromSettings(settings *C.obs_data_t) string {
@@ -78,14 +60,14 @@ func buildCSSFromSettings(settings *C.obs_data_t) string {
 
 	var sb strings.Builder
 	sb.WriteString(":root {\n")
-	for _, v := range cssVarDefs {
-		keyCS := C.CString(v.key)
+	for _, v := range widget.CSSVars {
+		keyCS := C.CString(v.Key)
 		val := C.GoString(C.obs_data_get_string(settings, keyCS))
 		C.free(unsafe.Pointer(keyCS))
 		if val == "" {
-			val = v.defVal
+			val = v.DefVal
 		}
-		fmt.Fprintf(&sb, "  %s: %s;\n", v.prop, val)
+		fmt.Fprintf(&sb, "  %s: %s;\n", v.Prop, val)
 	}
 	sb.WriteString("}\n")
 
@@ -103,8 +85,8 @@ func buildCSSFromSettings(settings *C.obs_data_t) string {
 // updateCSSModeVisibility shows or hides property groups based on the selected CSS mode.
 func updateCSSModeVisibility(props *C.obs_properties_t, mode string) {
 	isSimple := mode != "advanced"
-	for _, v := range cssVarDefs {
-		keyCS := C.CString(v.key)
+	for _, v := range widget.CSSVars {
+		keyCS := C.CString(v.Key)
 		if p := C.obs_properties_get(props, keyCS); p != nil {
 			C.obs_property_set_visible(p, C.bool(isSimple))
 		}
@@ -245,9 +227,9 @@ func source_get_defaults(settings *C.obs_data_t) {
 	C.obs_data_set_default_int(settings, C.CString("width"), 1920)
 	C.obs_data_set_default_int(settings, C.CString("height"), 1080)
 	C.obs_data_set_default_string(settings, C.CString("css_mode"), C.CString("simple"))
-	for _, v := range cssVarDefs {
-		keyCS := C.CString(v.key)
-		valCS := C.CString(v.defVal)
+	for _, v := range widget.CSSVars {
+		keyCS := C.CString(v.Key)
+		valCS := C.CString(v.DefVal)
 		C.obs_data_set_default_string(settings, keyCS, valCS)
 		C.free(unsafe.Pointer(keyCS))
 		C.free(unsafe.Pointer(valCS))
@@ -287,9 +269,9 @@ func source_get_props(data C.uintptr_t) *C.obs_properties_t {
 	C.obs_property_list_add_string(modeList, C.CString("Custom CSS"), C.CString("advanced"))
 	C.obs_property_set_modified_callback(modeList, C.obs_property_modified_t(unsafe.Pointer(C.source_css_mode_changed_cb)))
 
-	for _, v := range cssVarDefs {
-		keyCS := C.CString(v.key)
-		labelCS := C.CString(v.label)
+	for _, v := range widget.CSSVars {
+		keyCS := C.CString(v.Key)
+		labelCS := C.CString(v.Label)
 		C.obs_properties_add_text(props, keyCS, labelCS, C.OBS_TEXT_DEFAULT)
 		C.free(unsafe.Pointer(keyCS))
 		C.free(unsafe.Pointer(labelCS))
