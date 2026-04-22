@@ -157,7 +157,7 @@ func (s *chromiumSource) readCookie(name, domain string) (string, error) {
 // copyDBToTemp copies src (and its -wal/-shm siblings if present) to a temp
 // location. The returned cleanup function removes the temp files.
 func copyDBToTemp(src string) (string, func(), error) {
-	data, err := os.ReadFile(src)
+	data, err := readFileLocked(src)
 	if err != nil {
 		return "", func() {}, err
 	}
@@ -175,7 +175,7 @@ func copyDBToTemp(src string) (string, func(), error) {
 
 	// Copy WAL and SHM so SQLite sees a consistent snapshot.
 	for _, suffix := range []string{"-wal", "-shm"} {
-		if sidecar, err := os.ReadFile(src + suffix); err == nil {
+		if sidecar, err := readFileLocked(src + suffix); err == nil {
 			_ = os.WriteFile(tmp+suffix, sidecar, 0o600)
 		}
 	}

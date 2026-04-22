@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"unsafe"
@@ -203,4 +204,35 @@ func chromiumSources() []chromiumSource {
 		}
 	}
 	return sources
+}
+
+// readFileLocked reads a file even when another process holds it open.
+// Chromium opens its SQLite databases with FILE_SHARE_READ|WRITE|DELETE to
+// allow its own multi-process architecture; matching those share flags lets us
+// read through the lock without requiring elevated privileges.
+func readFileLocked(path string) ([]byte, error) {
+	pathPtr, err := windows.UTF16PtrFromString(path)
+	if err != nil {
+		return nil, err
+	}
+	h, err := windows.CreateFile(
+		pathPtr,
+		windows.GENERIC_READ,
+		windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE|windows.FILE_SHARE_DELETE,
+		nil,
+		windows.OPEN_EXISTING,
+		windows.FILE_ATTRIBUTE_NORMAL,
+		0,
+	)
+	if err != nil {
+		if err == windows.ERROR_SHARING_VIOLATION {
+			return nil, &os.PathError{Op: "open", Path: path,
+				Err: fmt.Errorf("%w (browser may need to be closed for cookie auto-discovery)", err)}
+		}
+		return nil, &os.PathError{Op: "open", Path: path, Err: err}
+	}
+	// os.NewFile takes ownership of the handle; Close releases it.
+	f := os.NewFile(uintptr(h), path)
+	defer f.Close()
+	return io.ReadAll(f)
 }
