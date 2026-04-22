@@ -16,6 +16,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/icedream/spotify-lyrics-widget/internal/logger"
 )
 
 const (
@@ -212,6 +214,8 @@ func (c *Client) refreshToken() error {
 		return errors.New("sp_dc cookie is required")
 	}
 
+	logger.Debugf("refreshing token (sp_dc length: %d)", len(c.spDC))
+
 	params, err := c.getServerTimeParams()
 	if err != nil {
 		return err
@@ -229,6 +233,14 @@ func (c *Client) refreshToken() error {
 		return fmt.Errorf("token request failed: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden ||
+		(resp.StatusCode >= 300 && resp.StatusCode < 400) {
+		return fmt.Errorf("sp_dc cookie appears to be invalid or expired (HTTP %d)", resp.StatusCode)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("token request returned HTTP %d", resp.StatusCode)
+	}
 
 	var token tokenResponse
 	if err := json.NewDecoder(resp.Body).Decode(&token); err != nil {
