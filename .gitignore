@@ -1,2 +1,14 @@
+# Build outputs
 plugin/spotify-lyrics.h
 plugin/spotify-lyrics.so
+lyrics-linux-amd64
+lyrics-linux-arm64
+lyrics-windows-amd64.exe
+lyrics-windows-arm64.exe
+spotify-lyrics-*.h
+spotify-lyrics-*.so
+spotify-lyrics-*.dll
+
+# Downloaded SDKs
+obs-src/
+obs-win-sdk/
