@@ -4,8 +4,8 @@
 package widget
 
 import (
-	"strings"
 	_ "embed"
+	"strings"
 )
 
 // HTML is the default lyrics widget page served by the built-in server.
@@ -40,7 +40,10 @@ func init() { CSSVars = ParseCSSVars(HTML) }
 // and returns a CSSVarDef for each. Lines without the annotation are skipped.
 // The OBS settings key is derived mechanically: "--font-family" -> "css_font_family".
 // Supported types: "" (text field, default), "color-alpha" (color picker with alpha),
-// "font" (OBS font picker; DefVal is ignored, value expands to multiple CSS sub-vars).
+// "font" (OBS font picker; DefVal is ignored, value expands to multiple CSS sub-vars),
+// "number:ms" (float spinner in milliseconds; DefVal is a CSS time e.g. "0.35s"),
+// "number:px" (int spinner in pixels, can be negative; DefVal e.g. "2px"),
+// "number:px+" (int spinner in pixels, non-negative; DefVal e.g. "10px").
 func ParseCSSVars(html []byte) []CSSVarDef {
 	var out []CSSVarDef
 	for _, line := range strings.Split(string(html), "\n") {
