@@ -58,7 +58,25 @@ func decryptChromiumAESGCM(data, key []byte) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return string(plain), nil
+	// Newer Chromium builds (≥130) prepend a binary prefix (32 bytes) to the
+	// cookie plaintext, likely a key commitment or integrity check. Find the
+	// first offset where all remaining bytes are printable ASCII and return
+	// from there; for unmodified cookies the offset is simply 0.
+	start := len(plain)
+	for i := range plain {
+		ok := true
+		for _, b := range plain[i:] {
+			if b < 0x20 || b > 0x7e {
+				ok = false
+				break
+			}
+		}
+		if ok {
+			start = i
+			break
+		}
+	}
+	return string(plain[start:]), nil
 }
 
 // dpapiDecrypt decrypts a DPAPI-encrypted blob using CryptUnprotectData.
