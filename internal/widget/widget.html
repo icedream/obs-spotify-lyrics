@@ -47,7 +47,10 @@
       --row-height:      4rem;                              /* obs: Row height */
 
       /* Horizontal padding on either side of the lyrics block */
-      --padding:         0 1rem;                            /* obs: Padding */
+      --padding-top:     0;                                 /* obs: Padding top | Padding */
+      --padding-bottom:  0;                                 /* obs: Padding bottom | Padding */
+      --padding-left:    1rem;                              /* obs: Padding left | Padding */
+      --padding-right:   1rem;                              /* obs: Padding right | Padding */
 
       --max-width:       80vw;                              /* obs: Max width */
 
@@ -89,7 +92,10 @@
       height: calc(var(--row-height) * 3);
       max-width: var(--max-width);
       width: 100%;
-      padding: var(--padding);
+      padding-top: var(--padding-top);
+      padding-bottom: var(--padding-bottom);
+      padding-left: var(--padding-left);
+      padding-right: var(--padding-left);
       transition: opacity var(--fadeout-duration) ease;
     }
 
