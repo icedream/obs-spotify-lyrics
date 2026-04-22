@@ -20,17 +20,28 @@
 
     /* Customise here: change these values to match your overlay theme. */
     :root {
-      --font-family:     'Segoe UI', system-ui, sans-serif; /* obs: Font family */
+      /* OBS font picker markers - the plugin expands these into sub-variables. */
+      --current-font:  ; /* obs: Font | Active line | font */
+      --adjacent-font: ; /* obs: Font | Adjacent lines | font */
+
+      /* Fallback sub-variables used when the widget is loaded outside OBS. */
+      --current-family:     'Segoe UI', system-ui, sans-serif;
+      --current-size:       24pt;
+      --current-weight:     700;
+      --current-style:      normal;
+      --current-decoration: none;
+
+      --adjacent-family:     'Segoe UI', system-ui, sans-serif;
+      --adjacent-size:       16pt;
+      --adjacent-weight:     400;
+      --adjacent-style:      normal;
+      --adjacent-decoration: none;
 
       /* Current (active) lyric line */
-      --current-color:   #ffffff;                           /* obs: Color | Active line */
-      --current-size:    2.2rem;                            /* obs: Font size | Active line */
-      --current-weight:  700;                               /* obs: Font weight | Active line */
+      --current-color:   #ffffff;                           /* obs: Color | Active line | color-alpha */
 
       /* Previous and next lines (dimmed context) */
-      --adjacent-color:  rgba(255, 255, 255, 0.45);         /* obs: Color | Adjacent lines */
-      --adjacent-size:   1.4rem;                            /* obs: Font size | Adjacent lines */
-      --adjacent-weight: 400;                               /* obs: Font weight | Adjacent lines */
+      --adjacent-color:  rgba(255, 255, 255, 0.45);         /* obs: Color | Adjacent lines | color-alpha */
 
       /* Height of each line slot. Must comfortably fit --current-size. */
       --row-height:      4rem;                              /* obs: Row height */
@@ -63,7 +74,6 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-family: var(--font-family);
     }
 
     /*
@@ -101,15 +111,21 @@
     }
 
     .line.current {
-      color:       var(--current-color);
-      font-size:   var(--current-size);
-      font-weight: var(--current-weight);
+      color:           var(--current-color);
+      font-family:     var(--current-family);
+      font-size:       var(--current-size);
+      font-weight:     var(--current-weight);
+      font-style:      var(--current-style);
+      text-decoration: var(--current-decoration);
     }
 
     .line.adjacent {
-      color:       var(--adjacent-color);
-      font-size:   var(--adjacent-size);
-      font-weight: var(--adjacent-weight);
+      color:           var(--adjacent-color);
+      font-family:     var(--adjacent-family);
+      font-size:       var(--adjacent-size);
+      font-weight:     var(--adjacent-weight);
+      font-style:      var(--adjacent-style);
+      text-decoration: var(--adjacent-decoration);
 
       z-index: -100;
     }
@@ -163,8 +179,8 @@
     linesEl.style.transition    = on ? `transform ${d}`                                    : 'none';
     prevEl.style.transition     = on ? `opacity ${d}`                                      : 'none';
     incomingEl.style.transition = on ? `opacity ${d}`                                      : 'none';
-    curEl.style.transition      = on ? `font-size ${d}, color ${d}, font-weight ${d}`      : 'none';
-    nextEl.style.transition     = on ? `font-size ${d}, color ${d}, font-weight ${d}`      : 'none';
+    curEl.style.transition      = on ? `font-size ${d}, color ${d}, font-weight ${d}, font-style ${d}` : 'none';
+    nextEl.style.transition     = on ? `font-size ${d}, color ${d}, font-weight ${d}, font-style ${d}` : 'none';
     stageEl.style.transition    = on ? ''                                                  : 'none';
   }
 

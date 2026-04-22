@@ -52,6 +52,26 @@ func cssGroupKey(group string) string {
 	return "css_group_" + strings.ReplaceAll(strings.ToLower(group), " ", "_")
 }
 
+// OBS font flags (from obs-properties.h).
+const (
+	obsFontBold      = uint32(1 << 0)
+	obsFontItalic    = uint32(1 << 1)
+	obsFontUnderline = uint32(1 << 2)
+	obsFontStrikeout = uint32(1 << 3)
+)
+
+// fontPickerDefault holds hardcoded defaults for each font picker property.
+type fontPickerDefault struct {
+	face  string
+	size  int
+	flags uint32
+}
+
+var fontDefaults = map[string]fontPickerDefault{
+	"css_current_font":  {"Segoe UI", 24, obsFontBold},
+	"css_adjacent_font": {"Segoe UI", 16, 0},
+}
+
 // buildCSSFromSettings builds the CSS string to inject into the nested browser_source.
 func buildCSSFromSettings(settings *C.obs_data_t) string {
 	modeCS := C.CString("css_mode")
@@ -69,6 +89,66 @@ func buildCSSFromSettings(settings *C.obs_data_t) string {
 	sb.WriteString(":root {\n")
 	for _, v := range widget.CSSVars {
 		keyCS := C.CString(v.Key)
+		if v.Type == "font" {
+			prefix := strings.TrimSuffix(v.Prop, "-font")
+			fontObj := C.obs_data_get_obj(settings, keyCS)
+			C.free(unsafe.Pointer(keyCS))
+
+			var face string
+			var size int
+			var flags uint32
+			if fontObj != nil {
+				faceKeyCS := C.CString("face")
+				sizeKeyCS := C.CString("size")
+				flagsKeyCS := C.CString("flags")
+				face = C.GoString(C.obs_data_get_string(fontObj, faceKeyCS))
+				size = int(C.obs_data_get_int(fontObj, sizeKeyCS))
+				flags = uint32(C.obs_data_get_int(fontObj, flagsKeyCS))
+				C.free(unsafe.Pointer(faceKeyCS))
+				C.free(unsafe.Pointer(sizeKeyCS))
+				C.free(unsafe.Pointer(flagsKeyCS))
+				C.obs_data_release(fontObj)
+			}
+			if def, ok := fontDefaults[v.Key]; ok {
+				if face == "" {
+					face = def.face
+				}
+				if size <= 0 {
+					size = def.size
+				}
+				if fontObj == nil {
+					flags = def.flags
+				}
+			}
+
+			weight := 400
+			if flags&obsFontBold != 0 {
+				weight = 700
+			}
+			style := "normal"
+			if flags&obsFontItalic != 0 {
+				style = "italic"
+			}
+			var decorParts []string
+			if flags&obsFontUnderline != 0 {
+				decorParts = append(decorParts, "underline")
+			}
+			if flags&obsFontStrikeout != 0 {
+				decorParts = append(decorParts, "line-through")
+			}
+			decoration := "none"
+			if len(decorParts) > 0 {
+				decoration = strings.Join(decorParts, " ")
+			}
+			escapedFace := strings.ReplaceAll(face, `"`, `\"`)
+			fmt.Fprintf(&sb, "  %s-family: \"%s\", system-ui, sans-serif;\n", prefix, escapedFace)
+			fmt.Fprintf(&sb, "  %s-size: %dpt;\n", prefix, size)
+			fmt.Fprintf(&sb, "  %s-weight: %d;\n", prefix, weight)
+			fmt.Fprintf(&sb, "  %s-style: %s;\n", prefix, style)
+			fmt.Fprintf(&sb, "  %s-decoration: %s;\n", prefix, decoration)
+			continue
+		}
+
 		var val string
 		if v.Type == "color-alpha" {
 			raw := uint32(C.obs_data_get_int(settings, keyCS))
@@ -262,6 +342,22 @@ func source_get_defaults(settings *C.obs_data_t) {
 			if parsed, ok := obscolor.FromCSS(v.DefVal); ok {
 				C.obs_data_set_default_int(settings, keyCS, C.longlong(parsed))
 			}
+		} else if v.Type == "font" {
+			def := fontDefaults[v.Key]
+			faceKeyCS := C.CString("face")
+			sizeKeyCS := C.CString("size")
+			flagsKeyCS := C.CString("flags")
+			faceValCS := C.CString(def.face)
+			fontObj := C.obs_data_create()
+			C.obs_data_set_string(fontObj, faceKeyCS, faceValCS)
+			C.obs_data_set_int(fontObj, sizeKeyCS, C.longlong(def.size))
+			C.obs_data_set_int(fontObj, flagsKeyCS, C.longlong(def.flags))
+			C.obs_data_set_default_obj(settings, keyCS, fontObj)
+			C.obs_data_release(fontObj)
+			C.free(unsafe.Pointer(faceValCS))
+			C.free(unsafe.Pointer(faceKeyCS))
+			C.free(unsafe.Pointer(sizeKeyCS))
+			C.free(unsafe.Pointer(flagsKeyCS))
 		} else {
 			valCS := C.CString(v.DefVal)
 			C.obs_data_set_default_string(settings, keyCS, valCS)
@@ -329,6 +425,8 @@ func source_get_props(data C.uintptr_t) *C.obs_properties_t {
 		labelCS := C.CString(v.Label)
 		if v.Type == "color-alpha" {
 			C.obs_properties_add_color_alpha(container, keyCS, labelCS)
+		} else if v.Type == "font" {
+			C.obs_properties_add_font(container, keyCS, labelCS)
 		} else {
 			C.obs_properties_add_text(container, keyCS, labelCS, C.OBS_TEXT_DEFAULT)
 		}
