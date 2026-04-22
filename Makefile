@@ -24,25 +24,29 @@ all: build-binary-linux-amd64 build-binary-linux-arm64 build-binary-windows-amd6
 .PHONY: build-binary-linux-amd64
 build-binary-linux-amd64:
 	GOOS=linux   GOARCH=amd64 CGO_ENABLED=0 go build \
-		-ldflags "-X main.version=$(VERSION)" \
+		-trimpath \
+		-ldflags "-s -w -X main.version=$(VERSION)" \
 		-o lyrics-linux-amd64 ./cmd/lyrics/
 
 .PHONY: build-binary-linux-arm64
 build-binary-linux-arm64:
 	GOOS=linux   GOARCH=arm64 CGO_ENABLED=0 go build \
-		-ldflags "-X main.version=$(VERSION)" \
+		-trimpath \
+		-ldflags "-s -w -X main.version=$(VERSION)" \
 		-o lyrics-linux-arm64 ./cmd/lyrics/
 
 .PHONY: build-binary-windows-amd64
 build-binary-windows-amd64:
 	GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build \
-		-ldflags "-X main.version=$(VERSION)" \
+		-trimpath \
+		-ldflags "-s -w -X main.version=$(VERSION)" \
 		-o lyrics-windows-amd64.exe ./cmd/lyrics/
 
 .PHONY: build-binary-windows-arm64
 build-binary-windows-arm64:
 	GOOS=windows GOARCH=arm64 CGO_ENABLED=0 go build \
-		-ldflags "-X main.version=$(VERSION)" \
+		-trimpath \
+		-ldflags "-s -w -X main.version=$(VERSION)" \
 		-o lyrics-windows-arm64.exe ./cmd/lyrics/
 
 ###############################################################################
@@ -99,7 +103,8 @@ build-plugin-windows-amd64: $(OBS_WIN_SRC)/.stamp $(OBS_WIN_SDK)/.stamp
 		CGO_CFLAGS="-I$(CURDIR)/$(OBS_WIN_SRC)/libobs -I$(CURDIR)/$(OBS_WIN_SRC)/frontend/api" \
 		CGO_LDFLAGS="-L$(CURDIR)/$(OBS_WIN_SDK) -lobs -lobs-frontend-api" \
 		go build -buildmode=c-shared \
-		-ldflags "-X main.pluginVersion=$(VERSION)" \
+		-trimpath \
+		-ldflags "-s -w -X main.pluginVersion=$(VERSION)" \
 		-o spotify-lyrics-windows-amd64.dll ./plugin/
 
 .PHONY: clean
