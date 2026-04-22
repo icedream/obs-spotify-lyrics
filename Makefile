@@ -126,7 +126,8 @@ build-installer-windows-amd64: build-binary-windows-amd64 build-plugin-windows-a
 clean:
 	rm -f lyrics-linux-amd64 lyrics-linux-arm64
 	rm -f lyrics-windows-amd64.exe lyrics-windows-arm64.exe
-	rm -f spotify-lyrics-linux-amd64.so spotify-lyrics-linux-arm64.so
+	rm -f spotify-lyrics-linux-amd64.so spotify-lyrics-linux-amd64.h
+	rm -f spotify-lyrics-linux-arm64.so spotify-lyrics-linux-arm64.h
 	rm -f spotify-lyrics-windows-amd64.dll spotify-lyrics-windows-amd64.h
 	rm -f obs-spotify-lyrics-*-setup.exe
 	rm -rf $(OBS_WIN_SRC) $(OBS_WIN_SDK) obs-win.zip obs-win-tmp
