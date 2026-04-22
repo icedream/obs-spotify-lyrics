@@ -247,6 +247,14 @@ func (p *poller) fetchAndBroadcastLyrics(ctx context.Context, trackID string) {
 		lines[i] = lyricLine{StartMs: l.startMs, EndMs: l.endMs, Words: l.words}
 	}
 
+	// Spotify appends a trailing empty line as an end-of-lyrics marker.
+	// Strip it (and any further trailing empties) so the widget fades out
+	// when the last real lyric ends rather than at track duration.
+	// Empty lines in the middle (section breaks) are intentionally kept.
+	for len(lines) > 0 && lines[len(lines)-1].Words == "" {
+		lines = lines[:len(lines)-1]
+	}
+
 	p.mu.Lock()
 	if p.lastTrackID != trackID {
 		p.mu.Unlock()
