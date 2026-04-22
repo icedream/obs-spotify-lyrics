@@ -16,7 +16,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Lyrics Widget</title>
-  <style>
+  <style id="obs-default">
 
     /* Customise here: change these values to match your overlay theme. */
     :root {
@@ -138,6 +138,8 @@
     }
 
   </style>
+  <!-- Populated at runtime via DispatchJSEvent when plugin settings change. -->
+  <style id="obs-css"></style>
 </head>
 <body>
 
@@ -367,6 +369,26 @@
   }
 
   connect();
+
+  /* Live CSS updates from OBS plugin settings (no page reload) */
+  const obsCssEl = document.getElementById('obs-css');
+
+  // OBS browser source injects a <style> element (no id) by appending it to
+  // <head> on page load. Keep obs-css last so live updates take precedence.
+  new MutationObserver(() => {
+    if (document.head.lastElementChild !== obsCssEl) {
+      document.head.appendChild(obsCssEl);
+    }
+  }).observe(document.head, { childList: true });
+
+  window.addEventListener('obsCSS', (e) => {
+    if (typeof e.detail === 'string') {
+      // Actively remove OBS browser source's injected style (no id) so it
+      // cannot override the update we're about to apply.
+      document.querySelectorAll('head > style:not([id])').forEach(s => s.remove());
+      obsCssEl.textContent = e.detail;
+    }
+  });
 </script>
 
 </body>
