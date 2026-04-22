@@ -12,6 +12,12 @@
 VERSION     ?= $(shell git describe --always --tags 2>/dev/null || echo dev)
 OBS_VERSION ?= 32.1.1
 
+# Set UPX= to the upx binary (e.g. make UPX=upx ...) to enable optional
+# compression of standalone binaries after stripping. Disabled by default.
+# Plugin .so/.dll files are intentionally excluded: shared libraries loaded via
+# dlopen/LoadLibrary are incompatible with UPX's entry-point wrapping.
+UPX ?=
+
 OBS_WIN_SRC := obs-src
 OBS_WIN_SDK := obs-win-sdk
 
@@ -27,6 +33,7 @@ build-binary-linux-amd64:
 		-trimpath \
 		-ldflags "-s -w -X main.version=$(VERSION)" \
 		-o lyrics-linux-amd64 ./cmd/lyrics/
+	$(if $(UPX),$(UPX) --lzma lyrics-linux-amd64)
 
 .PHONY: build-binary-linux-arm64
 build-binary-linux-arm64:
@@ -34,6 +41,7 @@ build-binary-linux-arm64:
 		-trimpath \
 		-ldflags "-s -w -X main.version=$(VERSION)" \
 		-o lyrics-linux-arm64 ./cmd/lyrics/
+	$(if $(UPX),$(UPX) --lzma lyrics-linux-arm64)
 
 .PHONY: build-binary-windows-amd64
 build-binary-windows-amd64:
@@ -41,6 +49,7 @@ build-binary-windows-amd64:
 		-trimpath \
 		-ldflags "-s -w -X main.version=$(VERSION)" \
 		-o lyrics-windows-amd64.exe ./cmd/lyrics/
+	$(if $(UPX),$(UPX) --lzma lyrics-windows-amd64.exe)
 
 .PHONY: build-binary-windows-arm64
 build-binary-windows-arm64:
