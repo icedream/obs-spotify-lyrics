@@ -178,3 +178,9 @@ func chromiumSources() []chromiumSource {
 	}
 	return sources
 }
+
+// readFileLocked reads a file. On Linux there are no mandatory locks so this
+// is equivalent to os.ReadFile.
+func readFileLocked(path string) ([]byte, error) {
+	return os.ReadFile(path)
+}
