@@ -268,7 +268,8 @@
     // Fade out after the last line has finished.
     if (lastLineEndMs > 0 && currentMs > lastLineEndMs) {
       if (!fadingOut) {
-        fadingOut             = true;
+        fadingOut = true;
+        stageEl.style.transition = ''; // restore CSS transition in case setTransitions(false) is still in effect
         stageEl.style.opacity = '0';
       }
       return;
@@ -337,8 +338,10 @@
           requestAnimationFrame(() => requestAnimationFrame(() => setTransitions(true)));
         } else {
           // Same track (seek or pause/resume): let tick() recalculate position.
-          activeIndex   = -1;
-          scrolling     = false;
+          // Clear any stale fade-out so the fadeIn path in tick() can restore the stage.
+          activeIndex = -1;
+          scrolling   = false;
+          fadingOut   = false;
         }
 
         // Always recalculate the fade-out point whenever we have lyrics,
