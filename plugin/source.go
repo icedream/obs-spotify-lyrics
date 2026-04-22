@@ -74,16 +74,16 @@ var fontDefaults = map[string]fontPickerDefault{
 	"css_adjacent_font": {"Segoe UI", 16, 0},
 }
 
-// parseMsDefault converts a CSS time value (e.g. "0.35s", "350ms") to milliseconds.
-func parseMsDefault(cssVal string) (float64, bool) {
+// parseMsDefault converts a CSS time value (e.g. "0.35s", "350ms") to whole milliseconds.
+func parseMsDefault(cssVal string) (int64, bool) {
 	cssVal = strings.TrimSpace(cssVal)
 	if strings.HasSuffix(cssVal, "ms") {
 		f, err := strconv.ParseFloat(strings.TrimSuffix(cssVal, "ms"), 64)
-		return f, err == nil
+		return int64(f), err == nil
 	}
 	if strings.HasSuffix(cssVal, "s") {
 		f, err := strconv.ParseFloat(strings.TrimSuffix(cssVal, "s"), 64)
-		return f * 1000, err == nil
+		return int64(f * 1000), err == nil
 	}
 	return 0, false
 }
@@ -185,8 +185,8 @@ func buildCSSFromSettings(settings *C.obs_data_t) string {
 			}
 			val = obscolor.ToCSS(raw)
 		case "number:ms":
-			ms := C.obs_data_get_double(settings, keyCS)
-			val = fmt.Sprintf("%.4gms", ms)
+			ms := C.obs_data_get_int(settings, keyCS)
+			val = fmt.Sprintf("%dms", ms)
 		case "number:px", "number:px+":
 			px := C.obs_data_get_int(settings, keyCS)
 			val = fmt.Sprintf("%dpx", px)
@@ -369,11 +369,12 @@ func source_get_defaults(settings *C.obs_data_t) {
 	C.obs_data_set_default_string(settings, C.CString("css_mode"), C.CString("simple"))
 	for _, v := range widget.CSSVars {
 		keyCS := C.CString(v.Key)
-		if v.Type == "color-alpha" {
+		switch v.Type {
+		case "color-alpha":
 			if parsed, ok := obscolor.FromCSS(v.DefVal); ok {
 				C.obs_data_set_default_int(settings, keyCS, C.longlong(parsed))
 			}
-		} else if v.Type == "font" {
+		case "font":
 			def := fontDefaults[v.Key]
 			faceKeyCS := C.CString("face")
 			sizeKeyCS := C.CString("size")
@@ -389,15 +390,15 @@ func source_get_defaults(settings *C.obs_data_t) {
 			C.free(unsafe.Pointer(faceKeyCS))
 			C.free(unsafe.Pointer(sizeKeyCS))
 			C.free(unsafe.Pointer(flagsKeyCS))
-		} else if v.Type == "number:ms" {
+		case "number:ms":
 			if ms, ok := parseMsDefault(v.DefVal); ok {
-				C.obs_data_set_default_double(settings, keyCS, C.double(ms))
+				C.obs_data_set_default_int(settings, keyCS, C.longlong(ms))
 			}
-		} else if v.Type == "number:px" || v.Type == "number:px+" {
+		case "number:px", "number:px+":
 			if px, ok := parsePxDefault(v.DefVal); ok {
 				C.obs_data_set_default_int(settings, keyCS, C.longlong(px))
 			}
-		} else {
+		default:
 			valCS := C.CString(v.DefVal)
 			C.obs_data_set_default_string(settings, keyCS, valCS)
 			C.free(unsafe.Pointer(valCS))
@@ -462,26 +463,27 @@ func source_get_props(data C.uintptr_t) *C.obs_properties_t {
 		}
 		keyCS := C.CString(v.Key)
 		labelCS := C.CString(v.Label)
-		if v.Type == "color-alpha" {
+		switch v.Type {
+		case "color-alpha":
 			C.obs_properties_add_color_alpha(container, keyCS, labelCS)
-		} else if v.Type == "font" {
+		case "font":
 			C.obs_properties_add_font(container, keyCS, labelCS)
-		} else if v.Type == "number:ms" {
-			p := C.obs_properties_add_float(container, keyCS, labelCS, 0, 10000, 50)
+		case "number:ms":
+			p := C.obs_properties_add_int(container, keyCS, labelCS, 0, 10000, 50)
 			msCS := C.CString(" ms")
-			C.obs_property_float_set_suffix(p, msCS)
+			C.obs_property_int_set_suffix(p, msCS)
 			C.free(unsafe.Pointer(msCS))
-		} else if v.Type == "number:px" {
+		case "number:px":
 			p := C.obs_properties_add_int(container, keyCS, labelCS, -500, 500, 1)
 			pxCS := C.CString(" px")
 			C.obs_property_int_set_suffix(p, pxCS)
 			C.free(unsafe.Pointer(pxCS))
-		} else if v.Type == "number:px+" {
+		case "number:px+":
 			p := C.obs_properties_add_int(container, keyCS, labelCS, 0, 500, 1)
 			pxCS := C.CString(" px")
 			C.obs_property_int_set_suffix(p, pxCS)
 			C.free(unsafe.Pointer(pxCS))
-		} else {
+		default:
 			C.obs_properties_add_text(container, keyCS, labelCS, C.OBS_TEXT_DEFAULT)
 		}
 		C.free(unsafe.Pointer(keyCS))
