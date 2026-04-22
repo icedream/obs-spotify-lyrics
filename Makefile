@@ -11,7 +11,7 @@
 #   make clean-plugin-windows-amd64      clean only Windows plugin outputs (incl. OBS SDK)
 
 VERSION     ?= $(shell git describe --always --tags 2>/dev/null || echo dev)
-OBS_VERSION ?= 32.1.1
+OBS_VERSION ?= 32.1.2
 MAKENSIS    ?= makensis
 
 # Set UPX= to the upx binary (e.g. make UPX=upx ...) to enable optional
