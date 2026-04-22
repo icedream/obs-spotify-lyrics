@@ -45,6 +45,12 @@ var (
 /* CSS variable definitions are parsed from the :root block in widget.html
    at init time via widget.CSSVars. See internal/widget/widget.go. */
 
+// cssGroupKey converts a group display name to a stable OBS settings key.
+// e.g. "Active line" -> "css_group_active_line"
+func cssGroupKey(group string) string {
+	return "css_group_" + strings.ReplaceAll(strings.ToLower(group), " ", "_")
+}
+
 // buildCSSFromSettings builds the CSS string to inject into the nested browser_source.
 func buildCSSFromSettings(settings *C.obs_data_t) string {
 	modeCS := C.CString("css_mode")
@@ -85,12 +91,22 @@ func buildCSSFromSettings(settings *C.obs_data_t) string {
 // updateCSSModeVisibility shows or hides property groups based on the selected CSS mode.
 func updateCSSModeVisibility(props *C.obs_properties_t, mode string) {
 	isSimple := mode != "advanced"
+	seenGroups := map[string]bool{}
 	for _, v := range widget.CSSVars {
-		keyCS := C.CString(v.Key)
-		if p := C.obs_properties_get(props, keyCS); p != nil {
-			C.obs_property_set_visible(p, C.bool(isSimple))
+		if v.Group == "" {
+			keyCS := C.CString(v.Key)
+			if p := C.obs_properties_get(props, keyCS); p != nil {
+				C.obs_property_set_visible(p, C.bool(isSimple))
+			}
+			C.free(unsafe.Pointer(keyCS))
+		} else if !seenGroups[v.Group] {
+			seenGroups[v.Group] = true
+			keyCS := C.CString(cssGroupKey(v.Group))
+			if p := C.obs_properties_get(props, keyCS); p != nil {
+				C.obs_property_set_visible(p, C.bool(isSimple))
+			}
+			C.free(unsafe.Pointer(keyCS))
 		}
-		C.free(unsafe.Pointer(keyCS))
 	}
 	extraCS := C.CString("css_extra")
 	if p := C.obs_properties_get(props, extraCS); p != nil {
@@ -269,10 +285,30 @@ func source_get_props(data C.uintptr_t) *C.obs_properties_t {
 	C.obs_property_list_add_string(modeList, C.CString("Custom CSS"), C.CString("advanced"))
 	C.obs_property_set_modified_callback(modeList, C.obs_property_modified_t(unsafe.Pointer(C.source_css_mode_changed_cb)))
 
+	// Add CSS variable fields, creating OBS property groups on first encounter.
+	groups := map[string]*C.obs_properties_t{}
 	for _, v := range widget.CSSVars {
+		var container *C.obs_properties_t
+		if v.Group == "" {
+			container = props
+		} else {
+			if g, ok := groups[v.Group]; ok {
+				container = g
+			} else {
+				// First var in this group: create the sub-properties and register it.
+				g = C.obs_properties_create()
+				groups[v.Group] = g
+				groupKeyCS := C.CString(cssGroupKey(v.Group))
+				groupLabelCS := C.CString(v.Group)
+				C.obs_properties_add_group(props, groupKeyCS, groupLabelCS, C.OBS_GROUP_NORMAL, g)
+				C.free(unsafe.Pointer(groupKeyCS))
+				C.free(unsafe.Pointer(groupLabelCS))
+				container = g
+			}
+		}
 		keyCS := C.CString(v.Key)
 		labelCS := C.CString(v.Label)
-		C.obs_properties_add_text(props, keyCS, labelCS, C.OBS_TEXT_DEFAULT)
+		C.obs_properties_add_text(container, keyCS, labelCS, C.OBS_TEXT_DEFAULT)
 		C.free(unsafe.Pointer(keyCS))
 		C.free(unsafe.Pointer(labelCS))
 	}
