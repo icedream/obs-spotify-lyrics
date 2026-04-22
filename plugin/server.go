@@ -4,13 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"sync"
 
 	"github.com/icedream/spotify-lyrics-widget/internal/api"
 	"github.com/icedream/spotify-lyrics-widget/internal/browser"
+	"github.com/icedream/spotify-lyrics-widget/internal/logger"
 	"github.com/icedream/spotify-lyrics-widget/internal/spotify"
 	"github.com/icedream/spotify-lyrics-widget/internal/widget"
 )
@@ -33,17 +33,17 @@ func serverStart(port int, spDC, deviceID string) error {
 	// Resolve sp_dc before taking the lock: browser.FindCookie may block on
 	// the system keychain and we must not stall status reads while it does.
 	if spDC == "" {
-		log.Println("spotify-lyrics plugin: no sp_dc configured, searching installed browsers...")
+		logger.Info("no sp_dc configured, searching installed browsers...")
 		var err error
 		spDC, err = browser.FindCookie("sp_dc", ".spotify.com")
 		if err != nil {
-			log.Printf("spotify-lyrics plugin: sp_dc auto-discovery failed: %v", err)
+			logger.Warnf("sp_dc auto-discovery failed: %v", err)
 			srvMu.Lock()
 			serverLastError = "sp_dc cookie not found, please enter it in the plugin settings"
 			srvMu.Unlock()
 			return err
 		}
-		log.Println("spotify-lyrics plugin: found sp_dc cookie in browser")
+		logger.Info("found sp_dc cookie in browser")
 	}
 
 	srvMu.Lock()
@@ -78,7 +78,7 @@ func serverStart(port int, spDC, deviceID string) error {
 
 	l, err := net.Listen("tcp", addr)
 	if err != nil {
-		log.Printf("spotify-lyrics plugin: could not bind %s: %v", addr, err)
+		logger.Errorf("could not bind %s: %v", addr, err)
 		serverLastError = fmt.Sprintf("could not bind %s: %v", addr, err)
 		cancel()
 		return err
@@ -86,11 +86,11 @@ func serverStart(port int, spDC, deviceID string) error {
 
 	srvCancel = cancel
 	widgetBaseURL = "http://" + l.Addr().String()
-	log.Printf("spotify-lyrics plugin: server running on %s/", widgetBaseURL)
+	logger.Infof("server running on %s/", widgetBaseURL)
 
 	go func() {
 		if err := httpSrv.Serve(l); !errors.Is(err, http.ErrServerClosed) && err != nil {
-			log.Printf("spotify-lyrics plugin: server error: %v", err)
+			logger.Errorf("server error: %v", err)
 		}
 	}()
 

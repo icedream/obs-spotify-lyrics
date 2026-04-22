@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/icedream/spotify-lyrics-widget/internal/logger"
 	"github.com/icedream/spotify-lyrics-widget/internal/spotify"
 	cli "github.com/urfave/cli/v3"
 )
@@ -24,13 +24,13 @@ func fetchLyrics(ctx context.Context, c *cli.Command) error {
 	}
 
 lyrics:
-	log.Println("Fetching lyrics:", trackID)
+	logger.Debugf("Fetching lyrics: %s", trackID)
 	r, err := s.Lyrics(ctx, trackID)
 	if err != nil {
 		var e *spotify.Error
 		if errors.As(err, &e) && !e.RetryAfter.IsZero() {
 			d := time.Until(e.RetryAfter)
-			log.Println("Waiting", d)
+			logger.Debugf("Waiting %v", d)
 			<-time.After(d)
 			time.Sleep(time.Second * 3)
 			goto lyrics

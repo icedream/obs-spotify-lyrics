@@ -6,7 +6,6 @@ package main
 #include <stdlib.h>
 #include <string.h>
 
-void blog_string(int log_level, const char *string);
 void call_enum_proc(obs_source_enum_proc_t proc, obs_source_t *parent, obs_source_t *child, void *param);
 
 extern bool source_css_mode_changed_cb(obs_properties_t *props, obs_property_t *prop, obs_data_t *settings);
@@ -22,6 +21,7 @@ import (
 	"sync"
 	"unsafe"
 
+	"github.com/icedream/spotify-lyrics-widget/internal/logger"
 	"github.com/icedream/spotify-lyrics-widget/internal/obscolor"
 	"github.com/icedream/spotify-lyrics-widget/internal/widget"
 )
@@ -792,10 +792,10 @@ func (s *lyricsSource) applyURL() {
 		return
 	}
 	if !browserSourceAvailable() {
-		blog(C.LOG_WARNING, "browser_source not available, add Browser Source manually with URL: "+url)
+		logger.Warnf("browser_source not available, add Browser Source manually with URL: %s", url)
 		return
 	}
-	blog(C.LOG_INFO, fmt.Sprintf("creating nested browser_source for %s/", url))
+	logger.Infof("creating nested browser_source for %s/", url)
 	s.createNested(url + "/")
 }
 
@@ -837,7 +837,7 @@ func (s *lyricsSource) createNested(url string) {
 	}()
 	s.nested = C.obs_source_create_private(idCS, nameCS, settings)
 	if s.nested != nil {
-		blog(C.LOG_INFO, fmt.Sprintf("nested browser_source created (active=%v showing=%v)", s.isActive, s.isShowing))
+		logger.Infof("nested browser_source created (active=%v showing=%v)", s.isActive, s.isShowing)
 		if s.isActive {
 			C.obs_source_add_active_child(s.self, s.nested)
 		}
@@ -845,7 +845,7 @@ func (s *lyricsSource) createNested(url string) {
 			C.obs_source_inc_showing(s.nested)
 		}
 	} else {
-		blog(C.LOG_WARNING, "obs_source_create_private returned nil for browser_source")
+		logger.Warn("obs_source_create_private returned nil for browser_source")
 	}
 }
 

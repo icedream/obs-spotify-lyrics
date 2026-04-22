@@ -69,6 +69,8 @@ import "C"
 import (
 	"runtime"
 	"unsafe"
+
+	"github.com/icedream/spotify-lyrics-widget/internal/logger"
 )
 
 var obsModulePointer *C.obs_module_t
@@ -99,9 +101,18 @@ var (
 // pluginVersion is set at build time via -ldflags.
 var pluginVersion = "dev"
 
+// OBS log levels as Go ints, initialised from C constants to avoid hardcoding.
+var (
+	logLevelDebug = int(C.LOG_DEBUG)
+	logLevelInfo  = int(C.LOG_INFO)
+	logLevelWarn  = int(C.LOG_WARNING)
+	logLevelError = int(C.LOG_ERROR)
+)
+
 //export obs_module_load
 func obs_module_load() C.bool {
-	blog(C.LOG_INFO, "version: "+pluginVersion+", go: "+runtime.Version())
+	logger.Set(&obsLogger{})
+	logger.Infof("version: %s, go: %s", pluginVersion, runtime.Version())
 
 	C.obs_register_source_s(&C.struct_obs_source_info{
 		id:                  sourceIDStr,
@@ -141,10 +152,10 @@ func obs_module_load() C.bool {
 	return true
 }
 
-func blog(level C.int, msg string) {
+func blog(level int, msg string) {
 	cs := C.CString(msg)
 	defer C.free(unsafe.Pointer(cs))
-	C.blog_string(level, cs)
+	C.blog_string(C.int(level), cs)
 }
 
 func main() {}

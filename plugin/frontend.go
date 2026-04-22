@@ -6,8 +6,6 @@ package main
 #include <util/platform.h>
 #include <stdlib.h>
 
-void blog_string(int log_level, const char *string);
-
 extern void frontend_cb          (uintptr_t data);
 extern void open_props_on_ui_thread(uintptr_t data);
 extern bool mode_changed_cb      (obs_properties_t *props, obs_property_t *prop, obs_data_t *settings);
@@ -30,6 +28,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"unsafe"
+
+	"github.com/icedream/spotify-lyrics-widget/internal/logger"
 )
 
 /* Config */
@@ -318,7 +318,7 @@ func frontend_event_cb(event C.enum_obs_frontend_event, _ C.uintptr_t) {
 		C.obs_source_update(dummySource, savedSettings)
 		C.obs_data_release(savedSettings)
 
-		blog(C.LOG_INFO, "plugin loaded")
+		logger.Info("plugin loaded")
 
 	case C.OBS_FRONTEND_EVENT_EXIT:
 		dummySourceMu.RLock()

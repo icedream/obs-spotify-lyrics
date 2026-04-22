@@ -4,13 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 
 	cli "github.com/urfave/cli/v3"
 
 	"github.com/icedream/spotify-lyrics-widget/internal/api"
+	"github.com/icedream/spotify-lyrics-widget/internal/logger"
 	"github.com/icedream/spotify-lyrics-widget/internal/widget"
 )
 
@@ -46,8 +46,8 @@ func serve(ctx context.Context, c *cli.Command) error {
 		return fmt.Errorf("setting up TCP listener: %w", err)
 	}
 
-	log.Printf("Lyrics server listening on ws://%s/ws", l.Addr())
-	log.Printf("HTML widget available at http://%s/", l.Addr())
+	logger.Infof("Lyrics server listening on ws://%s/ws", l.Addr())
+	logger.Infof("HTML widget available at http://%s/", l.Addr())
 
 	if err := httpSrv.Serve(l); !errors.Is(err, http.ErrServerClosed) {
 		return err
