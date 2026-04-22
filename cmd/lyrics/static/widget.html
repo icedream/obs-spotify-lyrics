@@ -155,6 +155,7 @@
 
   // Enable or disable the CSS transitions used during a scroll animation.
   // cur and next also transition their size/color as they swap roles.
+  // stageEl is included so that snapTo() opacity changes are always instant.
   function setTransitions(on) {
     const d = `var(--scroll-duration) ease`;
     linesEl.style.transition    = on ? `transform ${d}`                                    : 'none';
@@ -162,6 +163,7 @@
     incomingEl.style.transition = on ? `opacity ${d}`                                      : 'none';
     curEl.style.transition      = on ? `font-size ${d}, color ${d}, font-weight ${d}`      : 'none';
     nextEl.style.transition     = on ? `font-size ${d}, color ${d}, font-weight ${d}`      : 'none';
+    stageEl.style.transition    = on ? ''                                                  : 'none';
   }
 
   // Immediately render the display for `index` with no animation.
@@ -170,9 +172,10 @@
     linesEl.style.transform  = '';
     linesEl.offsetHeight;   // flush layout so no pending transitions can fire
 
-    // Restore stage visibility in case a fade-out was in progress.
-    fadingOut            = false;
-    stageEl.style.opacity = '';
+    // Hide the stage when pre-lyrics; restore it otherwise.
+    // stageEl transitions are off here (setTransitions(false) above), so this is instant.
+    fadingOut             = false;
+    stageEl.style.opacity = index < 0 ? '0' : '';
 
     prevEl.textContent     = textAt(index - 1);
     curEl.textContent      = textAt(index);
@@ -260,8 +263,15 @@
       scrollForward();
     } else {
       // Seek, jump, or initial display: snap directly without animation.
+      // If the stage was hidden (intro period), fade it in rather than snapping it visible.
+      const fadeIn       = stageEl.style.opacity === '0' && newIndex >= 0;
+      const snapIndex    = newIndex;
       snapTo(newIndex);
-      requestAnimationFrame(() => requestAnimationFrame(() => setTransitions(true)));
+      if (fadeIn) stageEl.style.opacity = '0';  // snapTo restored it; keep hidden until transitions are on
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        setTransitions(true);
+        if (fadeIn && activeIndex === snapIndex) stageEl.style.opacity = '';
+      }));
     }
   }
 
