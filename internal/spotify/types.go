@@ -43,20 +43,6 @@ type LyricsResponse struct {
 	HasVocalRemoval bool            `json:"hasVocalRemoval"`
 }
 
-// LRCLine represents a lyrics line in LRC format.
-type LRCLine struct {
-	TimeTag string `json:"timeTag"`
-	Words   string `json:"words"`
-}
-
-// SRTLine represents a lyrics line in SRT format.
-type SRTLine struct {
-	Index     int    `json:"index"`
-	StartTime string `json:"startTime"`
-	EndTime   string `json:"endTime"`
-	Words     string `json:"words"`
-}
-
 // Error represents an error returned by the Spotify API, with an associated HTTP status code.
 type Error struct {
 	Message    string

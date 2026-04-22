@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 )
 
@@ -58,63 +57,4 @@ func (c *Client) Lyrics(ctx context.Context, trackID string) (*LyricsResponse, e
 	}
 
 	return &lyricsResp, nil
-}
-
-// GetLRCLyrics converts a slice of LyricsLines to LRC format.
-func GetLRCLyrics(lines []LyricsLine) []LRCLine {
-	lrc := make([]LRCLine, 0, len(lines))
-	for _, line := range lines {
-		ms, _ := strconv.ParseInt(line.StartTimeMs, 10, 64)
-		lrc = append(lrc, LRCLine{
-			TimeTag: FormatMS(ms),
-			Words:   line.Words,
-		})
-	}
-	return lrc
-}
-
-// GetSRTLyrics converts a slice of LyricsLines to SRT format.
-// The last line is omitted as its end time is unknown.
-func GetSRTLyrics(lines []LyricsLine) []SRTLine {
-	if len(lines) == 0 {
-		return nil
-	}
-	srt := make([]SRTLine, 0, len(lines)-1)
-	for i := 1; i < len(lines); i++ {
-		startMs, _ := strconv.ParseInt(lines[i-1].StartTimeMs, 10, 64)
-		endMs, _ := strconv.ParseInt(lines[i].StartTimeMs, 10, 64)
-		srt = append(srt, SRTLine{
-			Index:     i,
-			StartTime: FormatSRT(startMs),
-			EndTime:   FormatSRT(endMs),
-			Words:     lines[i-1].Words,
-		})
-	}
-	return srt
-}
-
-// GetRawLyrics returns lyrics as a plain newline-delimited string.
-func GetRawLyrics(lines []LyricsLine) string {
-	var sb strings.Builder
-	for _, line := range lines {
-		sb.WriteString(line.Words)
-		sb.WriteByte('\n')
-	}
-	return sb.String()
-}
-
-// FormatMS formats a duration in milliseconds as mm:ss.cc for use in LRC files.
-func FormatMS(ms int64) string {
-	thSecs := ms / 1000
-	centiseconds := (ms % 1000) / 10
-	return fmt.Sprintf("%02d:%02d.%02d", thSecs/60, thSecs%60, centiseconds)
-}
-
-// FormatSRT formats a duration in milliseconds as hh:mm:ss,ms for use in SRT files.
-func FormatSRT(ms int64) string {
-	hours := ms / 3_600_000
-	minutes := (ms % 3_600_000) / 60_000
-	seconds := (ms % 60_000) / 1_000
-	millis := ms % 1_000
-	return fmt.Sprintf("%02d:%02d:%02d,%03d", hours, minutes, seconds, millis)
 }
