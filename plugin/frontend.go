@@ -143,9 +143,26 @@ func dummy_get_props(_ C.uintptr_t) *C.obs_properties_t {
 	props := C.obs_properties_create()
 	C.obs_properties_set_flags(props, C.OBS_PROPERTIES_DEFER_UPDATE)
 
+	// Spotify group
+	spotifyProps := C.obs_properties_create()
+	spDCKeyCS, spDCLabelCS := C.CString("sp_dc"), C.CString("sp_dc cookie (auto-detect if empty)")
+	C.obs_properties_add_text(spotifyProps, spDCKeyCS, spDCLabelCS, C.OBS_TEXT_PASSWORD)
+	C.free(unsafe.Pointer(spDCKeyCS))
+	C.free(unsafe.Pointer(spDCLabelCS))
+	deviceIDKeyCS, deviceIDLabelCS := C.CString("device_id"), C.CString("Device ID (random if empty)")
+	C.obs_properties_add_text(spotifyProps, deviceIDKeyCS, deviceIDLabelCS, C.OBS_TEXT_DEFAULT)
+	C.free(unsafe.Pointer(deviceIDKeyCS))
+	C.free(unsafe.Pointer(deviceIDLabelCS))
+	spotifyGrpKeyCS, spotifyGrpLabelCS := C.CString("grp_spotify"), C.CString("Spotify")
+	C.obs_properties_add_group(props, spotifyGrpKeyCS, spotifyGrpLabelCS, C.OBS_GROUP_NORMAL, spotifyProps)
+	C.free(unsafe.Pointer(spotifyGrpKeyCS))
+	C.free(unsafe.Pointer(spotifyGrpLabelCS))
+
+	// Webserver group
+	wsProps := C.obs_properties_create()
 	modeKeyCS, modeLabelCS := C.CString("mode"), C.CString("Mode")
 	modeList := C.obs_properties_add_list(
-		props,
+		wsProps,
 		modeKeyCS,
 		modeLabelCS,
 		C.OBS_COMBO_TYPE_LIST,
@@ -164,17 +181,9 @@ func dummy_get_props(_ C.uintptr_t) *C.obs_properties_t {
 	C.obs_property_set_modified_callback(modeList, C.obs_property_modified_t(unsafe.Pointer(C.mode_changed_cb)))
 
 	portKeyCS, portLabelCS := C.CString("port"), C.CString("Port (0 = automatic)")
-	C.obs_properties_add_int(props, portKeyCS, portLabelCS, 0, 65535, 1)
+	C.obs_properties_add_int(wsProps, portKeyCS, portLabelCS, 0, 65535, 1)
 	C.free(unsafe.Pointer(portKeyCS))
 	C.free(unsafe.Pointer(portLabelCS))
-	spDCKeyCS, spDCLabelCS := C.CString("sp_dc"), C.CString("sp_dc cookie (auto-discover if empty)")
-	C.obs_properties_add_text(props, spDCKeyCS, spDCLabelCS, C.OBS_TEXT_PASSWORD)
-	C.free(unsafe.Pointer(spDCKeyCS))
-	C.free(unsafe.Pointer(spDCLabelCS))
-	deviceIDKeyCS, deviceIDLabelCS := C.CString("device_id"), C.CString("Device ID (random if empty)")
-	C.obs_properties_add_text(props, deviceIDKeyCS, deviceIDLabelCS, C.OBS_TEXT_DEFAULT)
-	C.free(unsafe.Pointer(deviceIDKeyCS))
-	C.free(unsafe.Pointer(deviceIDLabelCS))
 
 	srvMu.Lock()
 	url := widgetBaseURL
@@ -194,15 +203,34 @@ func dummy_get_props(_ C.uintptr_t) *C.obs_properties_t {
 		infoType = C.OBS_TEXT_INFO_NORMAL
 	}
 	statusInfoKeyCS, statusInfoLabelCS := C.CString("status_info"), C.CString(statusMsg)
-	p := C.obs_properties_add_text(props, statusInfoKeyCS, statusInfoLabelCS, C.OBS_TEXT_INFO)
+	p := C.obs_properties_add_text(wsProps, statusInfoKeyCS, statusInfoLabelCS, C.OBS_TEXT_INFO)
 	C.free(unsafe.Pointer(statusInfoKeyCS))
 	C.free(unsafe.Pointer(statusInfoLabelCS))
 	C.obs_property_text_set_info_type(p, infoType)
 
 	extURLKeyCS, extURLLabelCS := C.CString("external_url"), C.CString("External server URL")
-	C.obs_properties_add_text(props, extURLKeyCS, extURLLabelCS, C.OBS_TEXT_DEFAULT)
+	C.obs_properties_add_text(wsProps, extURLKeyCS, extURLLabelCS, C.OBS_TEXT_DEFAULT)
 	C.free(unsafe.Pointer(extURLKeyCS))
 	C.free(unsafe.Pointer(extURLLabelCS))
+
+	wsGrpKeyCS, wsGrpLabelCS := C.CString("grp_webserver"), C.CString("Webserver")
+	C.obs_properties_add_group(props, wsGrpKeyCS, wsGrpLabelCS, C.OBS_GROUP_NORMAL, wsProps)
+	C.free(unsafe.Pointer(wsGrpKeyCS))
+	C.free(unsafe.Pointer(wsGrpLabelCS))
+
+	// About (flat, at the bottom)
+	projURLKeyCS := C.CString("project_url")
+	projURLLabelCS := C.CString(`<a href="https://github.com/icedream/obs-spotify-lyrics">github.com/icedream/obs-spotify-lyrics</a>`)
+	p = C.obs_properties_add_text(props, projURLKeyCS, projURLLabelCS, C.OBS_TEXT_INFO)
+	C.free(unsafe.Pointer(projURLKeyCS))
+	C.free(unsafe.Pointer(projURLLabelCS))
+	C.obs_property_text_set_info_type(p, C.OBS_TEXT_INFO_NORMAL)
+
+	verKeyCS, verLabelCS := C.CString("version_info"), C.CString("Version: "+pluginVersion)
+	p = C.obs_properties_add_text(props, verKeyCS, verLabelCS, C.OBS_TEXT_INFO)
+	C.free(unsafe.Pointer(verKeyCS))
+	C.free(unsafe.Pointer(verLabelCS))
+	C.obs_property_text_set_info_type(p, C.OBS_TEXT_INFO_NORMAL)
 
 	cfgMu.Lock()
 	mode := cfg.Mode
@@ -361,18 +389,24 @@ func mode_changed_cb(props *C.obs_properties_t, _ *C.obs_property_t, settings *C
 
 func updateModeVisibility(props *C.obs_properties_t, mode string) {
 	internal := mode != modeExternal
-	for _, name := range []string{"port", "sp_dc", "device_id", "status_info"} {
+
+	// Hide the entire Spotify group when using an external server.
+	grpSpotifyCS := C.CString("grp_spotify")
+	if g := C.obs_properties_get(props, grpSpotifyCS); g != nil {
+		C.obs_property_set_visible(g, C.bool(internal))
+	}
+	C.free(unsafe.Pointer(grpSpotifyCS))
+
+	for _, name := range []string{"port", "status_info"} {
 		cs := C.CString(name)
-		p := C.obs_properties_get(props, cs)
-		C.free(unsafe.Pointer(cs))
-		if p != nil {
+		if p := C.obs_properties_get(props, cs); p != nil {
 			C.obs_property_set_visible(p, C.bool(internal))
 		}
+		C.free(unsafe.Pointer(cs))
 	}
 	extCS := C.CString("external_url")
-	p := C.obs_properties_get(props, extCS)
-	C.free(unsafe.Pointer(extCS))
-	if p != nil {
+	if p := C.obs_properties_get(props, extCS); p != nil {
 		C.obs_property_set_visible(p, C.bool(!internal))
 	}
+	C.free(unsafe.Pointer(extCS))
 }
