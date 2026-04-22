@@ -64,10 +64,18 @@ func FromCSS(css string) (uint32, bool) {
 	if err1 != nil || err2 != nil || err3 != nil {
 		return 0, false
 	}
+	if math.IsNaN(r) || math.IsInf(r, 0) ||
+		math.IsNaN(g) || math.IsInf(g, 0) ||
+		math.IsNaN(b) || math.IsInf(b, 0) {
+		return 0, false
+	}
 	a := 255.0
 	if len(parts) == 4 {
 		av, err := strconv.ParseFloat(strings.TrimSpace(parts[3]), 64)
 		if err != nil {
+			return 0, false
+		}
+		if math.IsNaN(av) || math.IsInf(av, 0) {
 			return 0, false
 		}
 		if av <= 1.0 {
@@ -75,7 +83,10 @@ func FromCSS(css string) (uint32, bool) {
 		}
 		a = av
 	}
-	return uint32(math.Round(a))<<24 | uint32(math.Round(b))<<16 | uint32(math.Round(g))<<8 | uint32(math.Round(r)), true
+	clamp := func(v float64) uint32 {
+		return uint32(math.Round(math.Max(0, math.Min(255, v))))
+	}
+	return clamp(a)<<24 | clamp(b)<<16 | clamp(g)<<8 | clamp(r), true
 }
 
 // ToCSS converts an OBS ABGR uint32 color value to a CSS rgba() string.
