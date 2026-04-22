@@ -14,6 +14,7 @@ extern bool source_css_mode_changed_cb(obs_properties_t *props, obs_property_t *
 import "C"
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
@@ -516,6 +517,9 @@ func source_update(data C.uintptr_t, settings *C.obs_data_t) {
 	s := cgoHandleValue(data).(*lyricsSource)
 	s.mu.Lock()
 
+	prevWidth := s.width
+	prevHeight := s.height
+
 	if w := uint32(C.obs_data_get_int(settings, C.CString("width"))); w > 0 {
 		s.width = w
 	}
@@ -540,13 +544,22 @@ func source_update(data C.uintptr_t, settings *C.obs_data_t) {
 	// (OBS may call source_enum_active_sources synchronously, which locks s.mu).
 	nested := s.nested
 	doUpdate := nested != nil && nested == prevNested
+	sizeChanged := s.width != prevWidth || s.height != prevHeight
 	css := s.customCSS
 	w := s.width
 	h := s.height
 	s.mu.Unlock()
 
 	if doUpdate {
-		applyNestedSettings(nested, css, w, h)
+		// Push CSS live into the already-loaded page via DispatchJSEvent so the
+		// browser doesn't reload (which would re-trigger the lyrics fade-in).
+		// Also persist CSS in the source settings so it is applied correctly on
+		// the next page load (e.g. after a server restart).
+		persistNestedCSS(nested, css)
+		dispatchCSSEvent(nested, css)
+		if sizeChanged {
+			applyNestedSize(nested, w, h)
+		}
 	}
 }
 
@@ -571,6 +584,85 @@ func applyNestedSettings(nested *C.obs_source_t, css string, w, h uint32) {
 	C.obs_data_set_int(nsettings, widthCS, C.longlong(w))
 	C.obs_data_set_int(nsettings, heightCS, C.longlong(h))
 	C.obs_source_update(nested, nsettings)
+}
+
+// applyNestedSize pushes only width and height to an existing nested browser_source.
+// Unlike applyNestedSettings, this does not update CSS and avoids triggering a
+// page reload in the browser source. Must be called WITHOUT s.mu held.
+func applyNestedSize(nested *C.obs_source_t, w, h uint32) {
+	nsettings := C.obs_data_create()
+	defer C.obs_data_release(nsettings)
+
+	widthCS := C.CString("width")
+	heightCS := C.CString("height")
+	defer func() {
+		C.free(unsafe.Pointer(widthCS))
+		C.free(unsafe.Pointer(heightCS))
+	}()
+
+	C.obs_data_set_int(nsettings, widthCS, C.longlong(w))
+	C.obs_data_set_int(nsettings, heightCS, C.longlong(h))
+	C.obs_source_update(nested, nsettings)
+}
+
+// persistNestedCSS updates the CSS field in the nested browser_source's settings
+// without calling the source's update callback (no page reload).
+// This keeps the stored CSS current so it is applied correctly on the next page load.
+// Must be called WITHOUT s.mu held.
+func persistNestedCSS(nested *C.obs_source_t, css string) {
+	data := C.obs_source_get_settings(nested)
+	if data == nil {
+		return
+	}
+	defer C.obs_data_release(data)
+
+	cssKeyCS := C.CString("css")
+	cssCS := C.CString(css)
+	defer func() {
+		C.free(unsafe.Pointer(cssKeyCS))
+		C.free(unsafe.Pointer(cssCS))
+	}()
+
+	C.obs_data_set_string(data, cssKeyCS, cssCS)
+}
+
+// dispatchCSSEvent pushes a CSS string directly into the widget page via the
+// OBS browser source "javascript_event" proc (obs-browser registers it as
+// "void javascript_event(string eventName, string jsonString)"), which fires a
+// window 'obsCSS' custom event. The page updates its inline <style id="obs-css">
+// element with the new content, avoiding any page reload.
+// Must be called WITHOUT s.mu held.
+func dispatchCSSEvent(nested *C.obs_source_t, css string) {
+	ph := C.obs_source_get_proc_handler(nested)
+	if ph == nil {
+		return
+	}
+
+	jsonBytes, err := json.Marshal(css)
+	if err != nil {
+		return
+	}
+
+	var cd C.calldata_t
+	C.calldata_init(&cd)       //nolint:gocritic // CGo macro false positive
+	defer C.calldata_free(&cd) //nolint:gocritic // CGo macro false positive
+
+	eventNameCS := C.CString("eventName")
+	jsonStringCS := C.CString("jsonString")
+	eventValCS := C.CString("obsCSS")
+	jsonValCS := C.CString(string(jsonBytes))
+	procNameCS := C.CString("javascript_event")
+	defer func() {
+		C.free(unsafe.Pointer(eventNameCS))
+		C.free(unsafe.Pointer(jsonStringCS))
+		C.free(unsafe.Pointer(eventValCS))
+		C.free(unsafe.Pointer(jsonValCS))
+		C.free(unsafe.Pointer(procNameCS))
+	}()
+
+	C.calldata_set_string(&cd, eventNameCS, eventValCS) //nolint:gocritic // CGo macro false positive
+	C.calldata_set_string(&cd, jsonStringCS, jsonValCS) //nolint:gocritic // CGo macro false positive
+	C.proc_handler_call(ph, procNameCS, &cd)            //nolint:gocritic // CGo macro false positive
 }
 
 /* Nested browser_source management (called with s.mu held) */
@@ -662,7 +754,7 @@ func browserSourceAvailable() bool {
 	var idx C.size_t
 	for {
 		var id *C.char
-		if !bool(C.obs_enum_source_types(idx, &id)) {
+		if !bool(C.obs_enum_source_types(idx, &id)) { //nolint:gocritic // CGo macro false positive
 			break
 		}
 		if C.strcmp(id, idCS) == 0 {
