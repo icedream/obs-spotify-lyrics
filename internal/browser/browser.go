@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/icedream/spotify-lyrics-widget/internal/logger"
 	_ "modernc.org/sqlite"
 )
 
@@ -33,7 +34,7 @@ func FindCookie(name, domain string) (string, error) {
 			continue
 		}
 		if val != "" {
-			return val, nil
+			return sanitizeCookieValue(val), nil
 		}
 	}
 
@@ -44,7 +45,7 @@ func FindCookie(name, domain string) (string, error) {
 			continue
 		}
 		if val != "" {
-			return val, nil
+			return sanitizeCookieValue(val), nil
 		}
 	}
 
@@ -245,4 +246,27 @@ func chromiumProfileDirs(userDataDir string) []string {
 		}
 	}
 	return dirs
+}
+
+// sanitizeCookieValue strips control characters and non-ASCII bytes that
+// would make an HTTP Cookie header value invalid (Go 1.23+ enforces this).
+// On Windows, DPAPI-decrypted cookie values can contain such bytes.
+func sanitizeCookieValue(v string) string {
+	sanitized := strings.Map(func(r rune) rune {
+		if r < 0x20 || r == 0x7f || r > 0x7e {
+			return -1
+		}
+		return r
+	}, strings.TrimSpace(v))
+	if sanitized != v {
+		var bad []string
+		for i, b := range []byte(v) {
+			if b < 0x20 || b == 0x7f || b > 0x7e {
+				bad = append(bad, fmt.Sprintf("[%d]=0x%02X", i, b))
+			}
+		}
+		logger.Warnf("cookie value was sanitized: original len=%d sanitized len=%d bad bytes: %s",
+			len(v), len(sanitized), strings.Join(bad, " "))
+	}
+	return sanitized
 }
