@@ -10,6 +10,7 @@ void blog_string(int log_level, const char *string);
 void call_enum_proc(obs_source_enum_proc_t proc, obs_source_t *parent, obs_source_t *child, void *param);
 
 extern bool source_css_mode_changed_cb(obs_properties_t *props, obs_property_t *prop, obs_data_t *settings);
+extern bool source_reload_cb           (obs_properties_t *props, obs_property_t *prop, void *data);
 */
 import "C"
 
@@ -449,6 +450,11 @@ func source_get_props(data C.uintptr_t) *C.obs_properties_t {
 	C.free(unsafe.Pointer(urlInfoLabelCS))
 	C.obs_property_text_set_info_type(p, C.OBS_TEXT_INFO_NORMAL)
 
+	reloadKeyCS, reloadLabelCS := C.CString("reload"), C.CString("Reload widget")
+	C.obs_properties_add_button(props, reloadKeyCS, reloadLabelCS, C.obs_property_clicked_t(unsafe.Pointer(C.source_reload_cb)))
+	C.free(unsafe.Pointer(reloadKeyCS))
+	C.free(unsafe.Pointer(reloadLabelCS))
+
 	/* Style / CSS customization */
 	cssModeKeyCS, cssModeListLabelCS := C.CString("css_mode"), C.CString("Style")
 	modeList := C.obs_properties_add_list(
@@ -543,6 +549,23 @@ func source_css_mode_changed_cb(props *C.obs_properties_t, _ *C.obs_property_t, 
 	C.free(unsafe.Pointer(modeCS))
 	updateCSSModeVisibility(props, mode)
 	return true
+}
+
+//export source_reload_cb
+func source_reload_cb(_ *C.obs_properties_t, prop *C.obs_property_t, data unsafe.Pointer) C.bool {
+	_ = prop
+	s := cgoHandleValue(C.uintptr_t(uintptr(data))).(*lyricsSource)
+	s.mu.Lock()
+	s.url = "" // force applyURL to recreate the nested browser source
+	s.applyURL()
+	nested := s.nested
+	css := s.customCSS
+	s.mu.Unlock()
+	if nested != nil {
+		persistNestedCSS(nested, css)
+		dispatchCSSEvent(nested, css)
+	}
+	return false
 }
 
 //export source_activate

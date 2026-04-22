@@ -56,8 +56,9 @@ extern void frontend_cb       (uintptr_t data);
 
 // Property callbacks
 
-extern bool mode_changed_cb         (obs_properties_t *props, obs_property_t *prop, obs_data_t *settings);
+extern bool mode_changed_cb            (obs_properties_t *props, obs_property_t *prop, obs_data_t *settings);
 extern bool source_css_mode_changed_cb (obs_properties_t *props, obs_property_t *prop, obs_data_t *settings);
+extern bool source_reload_cb           (obs_properties_t *props, obs_property_t *prop, void *data);
 
 // C helper declared in helpers.c
 
