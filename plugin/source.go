@@ -19,6 +19,7 @@ import (
 	"sync"
 	"unsafe"
 
+	"github.com/icedream/spotify-lyrics-widget/internal/obscolor"
 	"github.com/icedream/spotify-lyrics-widget/internal/widget"
 )
 
@@ -68,11 +69,23 @@ func buildCSSFromSettings(settings *C.obs_data_t) string {
 	sb.WriteString(":root {\n")
 	for _, v := range widget.CSSVars {
 		keyCS := C.CString(v.Key)
-		val := C.GoString(C.obs_data_get_string(settings, keyCS))
-		C.free(unsafe.Pointer(keyCS))
-		if val == "" {
-			val = v.DefVal
+		var val string
+		if v.Type == "color-alpha" {
+			raw := uint32(C.obs_data_get_int(settings, keyCS))
+			if raw == 0 {
+				// Default was never applied; fall back to parsed CSS default.
+				if parsed, ok := obscolor.FromCSS(v.DefVal); ok {
+					raw = parsed
+				}
+			}
+			val = obscolor.ToCSS(raw)
+		} else {
+			val = C.GoString(C.obs_data_get_string(settings, keyCS))
+			if val == "" {
+				val = v.DefVal
+			}
 		}
+		C.free(unsafe.Pointer(keyCS))
 		fmt.Fprintf(&sb, "  %s: %s;\n", v.Prop, val)
 	}
 	sb.WriteString("}\n")
@@ -245,10 +258,16 @@ func source_get_defaults(settings *C.obs_data_t) {
 	C.obs_data_set_default_string(settings, C.CString("css_mode"), C.CString("simple"))
 	for _, v := range widget.CSSVars {
 		keyCS := C.CString(v.Key)
-		valCS := C.CString(v.DefVal)
-		C.obs_data_set_default_string(settings, keyCS, valCS)
+		if v.Type == "color-alpha" {
+			if parsed, ok := obscolor.FromCSS(v.DefVal); ok {
+				C.obs_data_set_default_int(settings, keyCS, C.longlong(parsed))
+			}
+		} else {
+			valCS := C.CString(v.DefVal)
+			C.obs_data_set_default_string(settings, keyCS, valCS)
+			C.free(unsafe.Pointer(valCS))
+		}
 		C.free(unsafe.Pointer(keyCS))
-		C.free(unsafe.Pointer(valCS))
 	}
 }
 
@@ -308,7 +327,11 @@ func source_get_props(data C.uintptr_t) *C.obs_properties_t {
 		}
 		keyCS := C.CString(v.Key)
 		labelCS := C.CString(v.Label)
-		C.obs_properties_add_text(container, keyCS, labelCS, C.OBS_TEXT_DEFAULT)
+		if v.Type == "color-alpha" {
+			C.obs_properties_add_color_alpha(container, keyCS, labelCS)
+		} else {
+			C.obs_properties_add_text(container, keyCS, labelCS, C.OBS_TEXT_DEFAULT)
+		}
 		C.free(unsafe.Pointer(keyCS))
 		C.free(unsafe.Pointer(labelCS))
 	}

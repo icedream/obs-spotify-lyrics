@@ -14,13 +14,15 @@ import (
 var HTML []byte
 
 // CSSVarDef describes a single CSS custom property defined in the widget's
-// :root block and annotated with /* obs: Label */ or /* obs: Label | Group */.
+// :root block and annotated with /* obs: Label */ or /* obs: Label | Group */ or
+// /* obs: Label | Group | type */.
 type CSSVarDef struct {
 	Key    string // OBS settings key, e.g. "css_font_family"
 	Prop   string // CSS custom property, e.g. "--font-family"
 	Label  string // human-readable OBS UI label, e.g. "Font family"
 	DefVal string // default value as written in :root, e.g. "'Segoe UI', system-ui, sans-serif"
 	Group  string // OBS property group name; empty = top-level
+	Type   string // OBS input type: "" (text), "color-alpha"
 }
 
 // CSSVars is the ordered list of CSS variables parsed from the widget HTML at
@@ -33,10 +35,11 @@ func init() { CSSVars = ParseCSSVars(HTML) }
 //
 //	--property: value; /* obs: Label */
 //	--property: value; /* obs: Label | Group */
+//	--property: value; /* obs: Label | Group | type */
 //
 // and returns a CSSVarDef for each. Lines without the annotation are skipped.
 // The OBS settings key is derived mechanically: "--font-family" -> "css_font_family".
-// If a Group is specified after "|", the variable belongs to that OBS property group.
+// Supported types: "" (text field, default), "color-alpha" (color picker with alpha).
 func ParseCSSVars(html []byte) []CSSVarDef {
 	var out []CSSVarDef
 	for _, line := range strings.Split(string(html), "\n") {
@@ -49,12 +52,14 @@ func ParseCSSVars(html []byte) []CSSVarDef {
 			continue
 		}
 		annotation := strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(trimmed[obsIdx:], "/* obs:"), "*/"))
-		var label, group string
-		if pipeIdx := strings.Index(annotation, "|"); pipeIdx >= 0 {
-			label = strings.TrimSpace(annotation[:pipeIdx])
-			group = strings.TrimSpace(annotation[pipeIdx+1:])
-		} else {
-			label = strings.TrimSpace(annotation)
+		parts := strings.SplitN(annotation, "|", 3)
+		var label, group, typ string
+		label = strings.TrimSpace(parts[0])
+		if len(parts) >= 2 {
+			group = strings.TrimSpace(parts[1])
+		}
+		if len(parts) >= 3 {
+			typ = strings.TrimSpace(parts[2])
 		}
 
 		// Extract property name and value from the part before the comment.
@@ -68,7 +73,7 @@ func ParseCSSVars(html []byte) []CSSVarDef {
 		val := strings.TrimSpace(decl[colonIdx+1:])
 
 		key := "css_" + strings.ReplaceAll(strings.TrimPrefix(prop, "--"), "-", "_")
-		out = append(out, CSSVarDef{Key: key, Prop: prop, Label: label, DefVal: val, Group: group})
+		out = append(out, CSSVarDef{Key: key, Prop: prop, Label: label, DefVal: val, Group: group, Type: typ})
 	}
 	return out
 }
