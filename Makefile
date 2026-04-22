@@ -7,7 +7,8 @@
 #   make build-plugin-linux-amd64        OBS plugin .so, Linux/amd64 (native CGO)
 #   make build-plugin-linux-arm64        OBS plugin .so, Linux/arm64 (native CGO)
 #   make build-plugin-windows-amd64      OBS plugin .dll, Windows/amd64 (MinGW cross-compile)
-#   make clean
+#   make clean                           clean all build outputs
+#   make clean-plugin-windows-amd64      clean only Windows plugin outputs (incl. OBS SDK)
 
 VERSION     ?= $(shell git describe --always --tags 2>/dev/null || echo dev)
 OBS_VERSION ?= 32.1.1
@@ -123,11 +124,41 @@ build-installer-windows-amd64: build-binary-windows-amd64 build-plugin-windows-a
 
 ###############################################################################
 # Cleanup
-clean:
-	rm -f lyrics-linux-amd64 lyrics-linux-arm64
-	rm -f lyrics-windows-amd64.exe lyrics-windows-arm64.exe
+.PHONY: clean
+clean: clean-binary-linux-amd64 clean-binary-linux-arm64 \
+       clean-binary-windows-amd64 clean-binary-windows-arm64 \
+       clean-plugin-linux-amd64 clean-plugin-linux-arm64 \
+       clean-plugin-windows-amd64 clean-installer-windows-amd64
+
+.PHONY: clean-binary-linux-amd64
+clean-binary-linux-amd64:
+	rm -f lyrics-linux-amd64
+
+.PHONY: clean-binary-linux-arm64
+clean-binary-linux-arm64:
+	rm -f lyrics-linux-arm64
+
+.PHONY: clean-binary-windows-amd64
+clean-binary-windows-amd64:
+	rm -f lyrics-windows-amd64.exe
+
+.PHONY: clean-binary-windows-arm64
+clean-binary-windows-arm64:
+	rm -f lyrics-windows-arm64.exe
+
+.PHONY: clean-plugin-linux-amd64
+clean-plugin-linux-amd64:
 	rm -f spotify-lyrics-linux-amd64.so spotify-lyrics-linux-amd64.h
+
+.PHONY: clean-plugin-linux-arm64
+clean-plugin-linux-arm64:
 	rm -f spotify-lyrics-linux-arm64.so spotify-lyrics-linux-arm64.h
+
+.PHONY: clean-plugin-windows-amd64
+clean-plugin-windows-amd64:
 	rm -f spotify-lyrics-windows-amd64.dll spotify-lyrics-windows-amd64.h
-	rm -f obs-spotify-lyrics-*-setup.exe
 	rm -rf $(OBS_WIN_SRC) $(OBS_WIN_SDK) obs-win.zip obs-win-tmp
+
+.PHONY: clean-installer-windows-amd64
+clean-installer-windows-amd64:
+	rm -f obs-spotify-lyrics-*-setup.exe
