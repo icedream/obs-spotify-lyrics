@@ -74,8 +74,29 @@ jobs:
           name: plugin-windows-amd64
           path: spotify-lyrics-windows-amd64.dll
 
+  build-installer-windows:
+    needs: [build-binary, build-plugin-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v8
+        with:
+          name: binary-windows-amd64
+      - uses: actions/download-artifact@v8
+        with:
+          name: plugin-windows-amd64
+      - name: Install NSIS
+        run: sudo apt-get update -y && sudo apt-get install -y nsis
+      - run: make build-installer-windows-amd64
+      - uses: actions/upload-artifact@v7
+        with:
+          name: installer-windows-amd64
+          path: obs-spotify-lyrics-*-setup.exe
+
   release:
-    needs: [build-binary, build-plugin-linux, build-plugin-windows]
+    needs: [build-binary, build-plugin-linux, build-plugin-windows, build-installer-windows]
     runs-on: ubuntu-latest
     permissions:
       contents: write
