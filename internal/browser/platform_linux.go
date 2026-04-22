@@ -71,7 +71,9 @@ func getSecretServicePassword(application string) (string, error) {
 		return "", fmt.Errorf("SearchItems: %w", err)
 	}
 
-	paths := append(unlocked, locked...)
+	paths := make([]dbus.ObjectPath, 0, len(unlocked)+len(locked))
+	paths = append(paths, unlocked...)
+	paths = append(paths, locked...)
 	if len(paths) == 0 {
 		return "", fmt.Errorf("no secret found for application=%q", application)
 	}
