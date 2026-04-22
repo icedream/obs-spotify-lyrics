@@ -106,3 +106,9 @@ The webserver can also be run as a separate application, completely detached
 from OBS, if so desired. If you choose to do so and still want to use the
 *Spotify Lyrics* source with it, you can select *External server* and provide
 the URL to it here.
+
+## Credits
+
+The Spotify lyrics client in this project is inspired by
+[akashrchandran/spotify-lyrics-api](https://github.com/akashrchandran/spotify-lyrics-api),
+a PHP implementation of the same Spotify internal lyrics API.
