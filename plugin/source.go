@@ -191,6 +191,9 @@ func buildCSSFromSettings(settings *C.obs_data_t) string {
 		case "number:px", "number:px+":
 			px := C.obs_data_get_int(settings, keyCS)
 			val = fmt.Sprintf("%dpx", px)
+		case "number":
+			f := float64(C.obs_data_get_double(settings, keyCS))
+			val = fmt.Sprintf("%.4g", f)
 		default:
 			val = C.GoString(C.obs_data_get_string(settings, keyCS))
 			if val == "" {
@@ -411,6 +414,10 @@ func source_get_defaults(settings *C.obs_data_t) {
 			if px, ok := parsePxDefault(v.DefVal); ok {
 				C.obs_data_set_default_int(settings, keyCS, C.longlong(px))
 			}
+		case "number":
+			if f, err := strconv.ParseFloat(v.DefVal, 64); err == nil {
+				C.obs_data_set_default_double(settings, keyCS, C.double(f))
+			}
 		default:
 			valCS := C.CString(v.DefVal)
 			C.obs_data_set_default_string(settings, keyCS, valCS)
@@ -519,6 +526,8 @@ func source_get_props(data C.uintptr_t) *C.obs_properties_t {
 			pxCS := C.CString(" px")
 			C.obs_property_int_set_suffix(p, pxCS)
 			C.free(unsafe.Pointer(pxCS))
+		case "number":
+			C.obs_properties_add_float_slider(container, keyCS, labelCS, 0.0, 1.0, 0.01)
 		default:
 			C.obs_properties_add_text(container, keyCS, labelCS, C.OBS_TEXT_DEFAULT)
 		}

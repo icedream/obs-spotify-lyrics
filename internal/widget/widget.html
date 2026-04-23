@@ -44,7 +44,8 @@
       --shimmer-color:          rgba(255, 255, 200, 0.9); /* obs: Shimmer color | Active line | color-alpha */
 
       /* Previous and next lines (dimmed context) */
-      --adjacent-color:         rgba(255, 255, 255, 0.45); /* obs: Color | Adjacent lines | color-alpha */
+      --adjacent-color:         #ffffff;                  /* obs: Color | Adjacent lines | color-alpha */
+      --adjacent-opacity:       0.45;                     /* obs: Opacity | Adjacent lines | number */
       --adjacent-stroke-width:  0px;                      /* obs: Outline width | Adjacent lines | number:px+ */
       --adjacent-stroke-color:  #000000;                  /* obs: Outline color | Adjacent lines | color-alpha */
 
@@ -137,6 +138,7 @@
     }
 
     .line.adjacent {
+      opacity:                  var(--adjacent-opacity);
       color:                    var(--adjacent-color);
       font-family:              var(--adjacent-family);
       font-size:                var(--adjacent-size);
@@ -238,8 +240,8 @@
     linesEl.style.transition    = on ? `transform ${d}`                                    : 'none';
     prevEl.style.transition     = on ? `opacity ${d}`                                      : 'none';
     incomingEl.style.transition = on ? `opacity ${d}`                                      : 'none';
-    curEl.style.transition      = on ? `font-size ${d}, color ${d}, font-weight ${d}, font-style ${d}` : 'none';
-    nextEl.style.transition     = on ? `font-size ${d}, color ${d}, font-weight ${d}, font-style ${d}` : 'none';
+    curEl.style.transition      = on ? `font-size ${d}, color ${d}, font-weight ${d}, font-style ${d}, opacity ${d}` : 'none';
+    nextEl.style.transition     = on ? `font-size ${d}, color ${d}, font-weight ${d}, font-style ${d}, opacity ${d}` : 'none';
     stageEl.style.transition    = on ? ''                                                  : 'none';
   }
 
