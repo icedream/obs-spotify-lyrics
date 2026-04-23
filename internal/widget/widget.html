@@ -255,6 +255,16 @@
     curEl.className          = 'line adjacent';
     nextEl.className         = 'line current';
 
+    // If scroll duration is 0ms the browser won't fire transitionend, so call
+    // snapTo() directly in that case.
+    const cssScrollVal = getComputedStyle(document.documentElement).getPropertyValue('--scroll-duration').trim();
+    const scrollMs = cssScrollVal.endsWith('ms') ? parseFloat(cssScrollVal) : parseFloat(cssScrollVal) * 1000;
+    if (scrollMs <= 0) {
+      snapTo(newIndex);
+      requestAnimationFrame(() => requestAnimationFrame(() => setTransitions(true)));
+      return;
+    }
+
     linesEl.addEventListener('transitionend', function onDone(e) {
       if (e.target !== linesEl || e.propertyName !== 'transform') return;
       linesEl.removeEventListener('transitionend', onDone);
