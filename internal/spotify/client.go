@@ -17,7 +17,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/icedream/spotify-lyrics-widget/internal/logger"
+	"github.com/icedream/obs-spotify-lyrics/internal/logger"
 )
 
 const (

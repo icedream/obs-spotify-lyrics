@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/icedream/spotify-lyrics-widget/internal/logger"
+	"github.com/icedream/obs-spotify-lyrics/internal/logger"
 	_ "modernc.org/sqlite"
 )
 

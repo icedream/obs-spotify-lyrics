@@ -70,7 +70,7 @@ import (
 	"runtime"
 	"unsafe"
 
-	"github.com/icedream/spotify-lyrics-widget/internal/logger"
+	"github.com/icedream/obs-spotify-lyrics/internal/logger"
 )
 
 var obsModulePointer *C.obs_module_t

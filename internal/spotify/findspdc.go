@@ -1,6 +1,6 @@
 package spotify
 
-import "github.com/icedream/spotify-lyrics-widget/internal/browser"
+import "github.com/icedream/obs-spotify-lyrics/internal/browser"
 
 // FindSpDC searches for the Spotify sp_dc session cookie in Firefox and
 // Chrome/Chromium browser profiles.

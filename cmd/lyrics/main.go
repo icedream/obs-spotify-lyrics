@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/icedream/spotify-lyrics-widget/internal/browser"
-	"github.com/icedream/spotify-lyrics-widget/internal/logger"
-	"github.com/icedream/spotify-lyrics-widget/internal/spotify"
+	"github.com/icedream/obs-spotify-lyrics/internal/browser"
+	"github.com/icedream/obs-spotify-lyrics/internal/logger"
+	"github.com/icedream/obs-spotify-lyrics/internal/spotify"
 	"github.com/kirsle/configdir"
 	"github.com/stoewer/go-strcase"
 	altsrc "github.com/urfave/cli-altsrc/v3"

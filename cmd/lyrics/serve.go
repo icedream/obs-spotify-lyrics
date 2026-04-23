@@ -9,9 +9,9 @@ import (
 
 	cli "github.com/urfave/cli/v3"
 
-	"github.com/icedream/spotify-lyrics-widget/internal/api"
-	"github.com/icedream/spotify-lyrics-widget/internal/logger"
-	"github.com/icedream/spotify-lyrics-widget/internal/widget"
+	"github.com/icedream/obs-spotify-lyrics/internal/api"
+	"github.com/icedream/obs-spotify-lyrics/internal/logger"
+	"github.com/icedream/obs-spotify-lyrics/internal/widget"
 )
 
 func serve(ctx context.Context, c *cli.Command) error {

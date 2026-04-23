@@ -1,6 +1,6 @@
 package main
 
-import "github.com/icedream/spotify-lyrics-widget/internal/logger"
+import "github.com/icedream/obs-spotify-lyrics/internal/logger"
 
 // obsLogger routes all log output through OBS's blog() infrastructure.
 // Level values are initialised from the C LOG_* constants in main.go.

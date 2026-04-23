@@ -29,7 +29,7 @@ import (
 	"sync/atomic"
 	"unsafe"
 
-	"github.com/icedream/spotify-lyrics-widget/internal/logger"
+	"github.com/icedream/obs-spotify-lyrics/internal/logger"
 )
 
 /* Config */

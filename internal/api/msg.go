@@ -3,7 +3,7 @@ package api
 import (
 	"encoding/json"
 
-	"github.com/icedream/spotify-lyrics-widget/internal/spotify"
+	"github.com/icedream/obs-spotify-lyrics/internal/spotify"
 )
 
 // msg is the JSON payload sent over the WebSocket to every connected widget.

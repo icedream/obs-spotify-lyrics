@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/icedream/spotify-lyrics-widget/internal/spotify"
+	"github.com/icedream/obs-spotify-lyrics/internal/spotify"
 )
 
 // Server is the OBS lyrics widget WebSocket API server.

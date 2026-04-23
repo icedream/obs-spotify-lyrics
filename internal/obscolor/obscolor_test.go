@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/icedream/spotify-lyrics-widget/internal/obscolor"
+	"github.com/icedream/obs-spotify-lyrics/internal/obscolor"
 )
 
 // OBS ABGR format: 0xAABBGGRR

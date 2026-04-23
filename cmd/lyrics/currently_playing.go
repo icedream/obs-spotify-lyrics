@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/icedream/spotify-lyrics-widget/internal/logger"
-	"github.com/icedream/spotify-lyrics-widget/internal/spotify"
+	"github.com/icedream/obs-spotify-lyrics/internal/logger"
+	"github.com/icedream/obs-spotify-lyrics/internal/spotify"
 	cli "github.com/urfave/cli/v3"
 )
 

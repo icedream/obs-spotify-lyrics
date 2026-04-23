@@ -1,4 +1,4 @@
-module github.com/icedream/spotify-lyrics-widget
+module github.com/icedream/obs-spotify-lyrics
 
 go 1.26.2
 

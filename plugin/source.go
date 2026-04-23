@@ -21,9 +21,9 @@ import (
 	"sync"
 	"unsafe"
 
-	"github.com/icedream/spotify-lyrics-widget/internal/logger"
-	"github.com/icedream/spotify-lyrics-widget/internal/obscolor"
-	"github.com/icedream/spotify-lyrics-widget/internal/widget"
+	"github.com/icedream/obs-spotify-lyrics/internal/logger"
+	"github.com/icedream/obs-spotify-lyrics/internal/obscolor"
+	"github.com/icedream/obs-spotify-lyrics/internal/widget"
 )
 
 /* lyricsSource represents one "Spotify Lyrics" source instance. */
