@@ -41,6 +41,7 @@
       --current-color:          #ffffff;                  /* obs: Color | Active line | color-alpha */
       --current-stroke-width:   0px;                      /* obs: Outline width | Active line | number:px+ */
       --current-stroke-color:   #000000;                  /* obs: Outline color | Active line | color-alpha */
+      --shimmer-color:          rgba(255, 255, 200, 0.9); /* obs: Shimmer color | Active line | color-alpha */
 
       /* Previous and next lines (dimmed context) */
       --adjacent-color:         rgba(255, 255, 255, 0.45); /* obs: Color | Adjacent lines | color-alpha */
@@ -114,6 +115,7 @@
     }
 
     .line {
+      width: 100%;
       text-align: center;
       text-shadow: var(--text-shadow-x) var(--text-shadow-y) var(--text-shadow-blur) var(--text-shadow-color);
       white-space: pre-wrap;
@@ -122,6 +124,7 @@
     }
 
     .line.current {
+      position: relative;
       color:                    var(--current-color);
       font-family:              var(--current-family);
       font-size:                var(--current-size);
@@ -145,6 +148,37 @@
       paint-order:              stroke fill;
 
       z-index: -100;
+    }
+
+    /* Shimmer: a warm highlight that sweeps left-to-right over the active lyric text. */
+    @keyframes shimmer {
+      from { background-position: 85% 0; }
+      to   { background-position: 15% 0; }
+    }
+
+    /*
+     * The ::after overlay mirrors the text via attr(data-text) so that
+     * background-clip: text confines the shimmer to the actual glyph pixels.
+     * data-text is kept in sync with textContent by the setText() helper in JS.
+     */
+    .line.current::after {
+      content: attr(data-text);
+      position: absolute;
+      inset: 0;
+      background-image: linear-gradient(
+        90deg,
+        transparent 42%,
+        var(--shimmer-color) 50%,
+        transparent 58%
+      );
+      background-size: 300% 100%;
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      -webkit-text-stroke-width: 0;
+      text-shadow: none;
+      animation: shimmer var(--shimmer-duration, 4s) linear both;
+      pointer-events: none;
     }
 
   </style>
@@ -190,6 +224,12 @@
     return (i >= 0 && i < lyrics.length) ? lyrics[i].words : '';
   }
 
+  // Sets both textContent and data-text (used by the shimmer ::after overlay).
+  function setText(el, text) {
+    el.textContent = text;
+    el.dataset.text = text;
+  }
+
   // Enable or disable the CSS transitions used during a scroll animation.
   // cur and next also transition their size/color as they swap roles.
   // stageEl is included so that snapTo() opacity changes are always instant.
@@ -204,6 +244,21 @@
   }
 
   // Immediately render the display for `index` with no animation.
+  function computeLineDuration(index) {
+    if (index < 0 || index >= lyrics.length) return 4000;
+    // For mid-song lines the shimmer starts ~scroll-duration ms late (snapTo is called
+    // only after the outgoing scroll animation completes), so subtract it to ensure the
+    // sweep finishes just as the next scroll begins rather than being cut mid-way.
+    const cssVal  = getComputedStyle(document.documentElement).getPropertyValue('--scroll-duration').trim();
+    const scrollMs = cssVal.endsWith('ms') ? parseFloat(cssVal) : parseFloat(cssVal) * 1000;
+    if (index < lyrics.length - 1) {
+      return Math.max(lyrics[index + 1].start_ms - lyrics[index].start_ms - scrollMs, 500);
+    }
+    // Last line: no following scroll, so use the full available time.
+    const last = lyrics[index];
+    return last.end_ms ? Math.max(last.end_ms - last.start_ms, 500) : 4000;
+  }
+
   function snapTo(index) {
     setTransitions(false);
     linesEl.style.transform  = '';
@@ -214,12 +269,16 @@
     fadingOut             = false;
     stageEl.style.opacity = index < 0 ? '0' : '';
 
-    prevEl.textContent     = textAt(index - 1);
-    curEl.textContent      = textAt(index);
-    nextEl.textContent     = textAt(index + 1);
-    incomingEl.textContent = '';
+    setText(prevEl, textAt(index - 1));
+    setText(curEl,  textAt(index));
+    setText(nextEl, textAt(index + 1));
+    setText(incomingEl, '');
 
     prevEl.className     = 'line adjacent';
+    // Set shimmer duration and force ::after animation to restart.
+    curEl.style.setProperty('--shimmer-duration', computeLineDuration(index) + 'ms');
+    curEl.className = 'line';        // briefly drop 'current' so the ::after resets
+    curEl.offsetHeight;              // flush
     curEl.className      = 'line current';
     nextEl.className     = 'line adjacent';
     incomingEl.className = 'line adjacent';
@@ -243,7 +302,7 @@
     const newIndex = activeIndex + 1;
 
     // Stage the next-next line below the fold, initially invisible.
-    incomingEl.textContent   = textAt(newIndex + 1);
+    setText(incomingEl, textAt(newIndex + 1));
     incomingEl.style.opacity = '0';
     linesEl.offsetHeight;   // commit so the browser records opacity:0 as the start state
 
@@ -253,6 +312,8 @@
     prevEl.style.opacity     = '0';
     incomingEl.style.opacity = (newIndex < lyrics.length - 1) ? '' : '0';
     curEl.className          = 'line adjacent';
+    // Suppress shimmer on nextEl during the scroll animation; snapTo() starts it properly.
+    nextEl.style.setProperty('--shimmer-duration', '0s');
     nextEl.className         = 'line current';
 
     // If scroll duration is 0ms the browser won't fire transitionend, so call
