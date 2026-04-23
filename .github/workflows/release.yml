@@ -137,6 +137,8 @@ jobs:
           rm -rf staging
 
           cp dist/obs-spotify-lyrics-*-setup.exe pkg/
+      - name: Generate SHA256SUMS
+        run: cd pkg && sha256sum * > SHA256SUMS
       - uses: softprops/action-gh-release@v3
         with:
           files: pkg/*
