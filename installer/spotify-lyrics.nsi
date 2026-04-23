@@ -170,14 +170,11 @@ Function .onInit
     StrCpy $AutoUpdate "1"
     StrCpy $OBSWasRunning "1"
 
-    ; Signal the OBS plugin (which is waiting in the non-elevated process) that
-    ; the installer has successfully elevated, so OBS can quit cleanly.
-    StrCpy $R0 "ObsSpotifyLyricsUpdate_$WaitPID"
-    System::Call 'kernel32::OpenEventW(i 0x0002, i 0, w r0) p .r1'
-    ${If} $1 <> 0
-      System::Call 'kernel32::SetEvent(p r1)'
-      System::Call 'kernel32::CloseHandle(p r1)'
-    ${EndIf}
+    ; Signal OBS by creating a temp file. Named kernel events are unreliable
+    ; across UAC integrity levels; a file in the shared user temp dir is not.
+    StrCpy $R0 "$TEMP\SpotifyLyricsUpdate_$WaitPID.signal"
+    FileOpen $R1 $R0 w
+    FileClose $R1
 
     ; Wait for OBS to exit (it holds the plugin DLL open).
     System::Call 'kernel32::OpenProcess(i 0x100000, i 0, i $WaitPID) p .r1'

@@ -180,16 +180,13 @@ func openUpdate(info *releaseInfo) {
 	// exePath is intentionally not deferred for removal: the file is locked by
 	// the running installer; the OS will clean it from the temp directory later.
 
-	// Create a named event that the installer will signal once it has successfully
-	// elevated (UAC approved).  We wait for this signal before quitting OBS so
-	// that cancelling UAC does not leave OBS closed without the update applied.
+	// Use a temp file as the signal from the elevated installer back to OBS.
+	// Named kernel events are unreliable across UAC integrity levels; temp files
+	// are accessible to both the medium-integrity OBS process and the elevated
+	// installer process since they share the same user temp directory.
 	pid := os.Getpid()
-	eventName, _ := windows.UTF16PtrFromString(fmt.Sprintf("ObsSpotifyLyricsUpdate_%d", pid))
-	hEvent, err := windows.CreateEvent(nil, 1 /* manual-reset */, 0 /* initially unset */, eventName)
-	if err != nil {
-		openBrowser(info.HTMLURL)
-		return
-	}
+	signalPath := fmt.Sprintf("%s\\SpotifyLyricsUpdate_%d.signal", os.TempDir(), pid)
+	os.Remove(signalPath) //nolint:errcheck // clean up any stale signal from a previous attempt
 
 	// ShellExecute triggers UAC elevation for admin installers and handles
 	// paths with spaces safely, unlike cmd /c start.
@@ -197,20 +194,22 @@ func openUpdate(info *releaseInfo) {
 	argsPtr, _ := windows.UTF16PtrFromString(fmt.Sprintf("/AUTOUPDATE=%d", pid))
 	const swShowNormal = 1
 	if err := windows.ShellExecute(0, nil, exePtr, argsPtr, nil, swShowNormal); err != nil {
-		windows.CloseHandle(hEvent) //nolint:errcheck
 		openBrowser(info.HTMLURL)
 		return
 	}
 
-	// Wait (in a background goroutine) for the installer to signal the event,
-	// then quit OBS on the UI thread.  Timeout after 2 minutes in case the user
-	// cancels or dismisses the UAC prompt.
+	// Poll for the signal file in a background goroutine. The installer creates
+	// it after UAC elevation succeeds. Once seen, delete it and quit OBS.
+	// Timeout after 2 minutes in case the user cancels or dismisses the UAC prompt.
 	go func() {
-		defer func() { _ = windows.CloseHandle(hEvent) }()
-		const twoMinutesMS = 2 * 60 * 1000
-		ret, _ := windows.WaitForSingleObject(hEvent, twoMinutesMS)
-		if ret == windows.WAIT_OBJECT_0 {
-			scheduleQuitOBS()
+		deadline := time.Now().Add(2 * time.Minute)
+		for time.Now().Before(deadline) {
+			if _, err := os.Stat(signalPath); err == nil {
+				os.Remove(signalPath) //nolint:errcheck
+				scheduleQuitOBS()
+				return
+			}
+			time.Sleep(500 * time.Millisecond)
 		}
 	}()
 }
