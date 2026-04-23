@@ -147,6 +147,18 @@ jobs:
           for f in pkg/*; do
             cosign sign-blob --yes --bundle "${f}.bundle" "$f"
           done
+      - name: Sign SHA256SUMS with GPG
+        env:
+          GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
+          GPG_SIGNING_PASSPHRASE: ${{ secrets.GPG_SIGNING_PASSPHRASE }}
+        run: |
+          if [ -z "$GPG_SIGNING_KEY" ]; then
+            echo "GPG_SIGNING_KEY not set, skipping GPG signing"
+            exit 0
+          fi
+          echo "$GPG_SIGNING_KEY" | gpg --batch --import
+          echo "$GPG_SIGNING_PASSPHRASE" | gpg --batch --yes --passphrase-fd 0 \
+            --detach-sign --armor --output pkg/SHA256SUMS.asc pkg/SHA256SUMS
       - uses: softprops/action-gh-release@v3
         with:
           files: pkg/*
