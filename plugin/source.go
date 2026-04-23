@@ -288,8 +288,8 @@ func source_get_name(_ C.uintptr_t) *C.char {
 func source_create(settings *C.obs_data_t, self *C.obs_source_t) C.uintptr_t {
 	s := &lyricsSource{
 		self:    self,
-		width:   1920,
-		height:  1080,
+		width:   1280,
+		height:  400,
 		cssMode: "simple",
 	}
 
@@ -377,8 +377,8 @@ func source_get_defaults(settings *C.obs_data_t) {
 	defer C.free(unsafe.Pointer(cssModeCS))
 	simpleCS := C.CString("simple")
 	defer C.free(unsafe.Pointer(simpleCS))
-	C.obs_data_set_default_int(settings, widthCS, 1920)
-	C.obs_data_set_default_int(settings, heightCS, 1080)
+	C.obs_data_set_default_int(settings, widthCS, 1280)
+	C.obs_data_set_default_int(settings, heightCS, 400)
 	C.obs_data_set_default_string(settings, cssModeCS, simpleCS)
 	for _, v := range widget.CSSVars {
 		keyCS := C.CString(v.Key)
