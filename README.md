@@ -9,6 +9,10 @@ to give your stream chat an opportunity to actually understand the lyrics of the
 Spotify tracks you listen to in the background, then this is the perfect
 customizable solution for you.
 
+<p align="center">
+  <img src="assets/screenshots/windows-source-preview-opensans-nooutline.png" width="800" alt="Lyrics widget on stream showing three lines: two faded and one highlighted">
+</p>
+
 ## What's inside
 
 This comes with everything necessary to render the lyrics of your Spotify tracks
@@ -59,6 +63,10 @@ The "Simple" view gives you a clear list of all adjustable variables, pre-filled
 with default values. Any change to these values is immediately reflected in the
 preview.
 
+<p align="center">
+  <img src="assets/screenshots/windows-source-settings.png" width="500" alt="Source settings panel showing live preview and per-line font, color and outline controls">
+</p>
+
 Things that can be adjusted include:
 
 - Colors (highlighted & adjacent lines)
@@ -81,6 +89,10 @@ For documentation on how to talk to the WebSocket and what information it provid
 check [`WebSocket.md`](WebSocket.md).
 
 ## Configuration
+
+<p align="center">
+  <img src="assets/screenshots/windows-plugin-settings.png" width="500" alt="Plugin settings dialog showing Spotify token, port and external server fields">
+</p>
 
 ### Spotify authentication
 
