@@ -41,6 +41,7 @@ Var OBSWasRunning
 ; Pages
 ; ---------------------------------------------------------------------------
 !insertmacro MUI_PAGE_WELCOME
+!insertmacro MUI_PAGE_LICENSE "..\LICENSE.txt"
 !insertmacro MUI_PAGE_COMPONENTS
 !insertmacro MUI_PAGE_INSTFILES
 
@@ -152,6 +153,7 @@ Section "OBS Plugin" SecPlugin
   WriteRegStr HKLM "Software\Spotify Lyrics Widget" "InstallDir" "$INSTDIR"
 
   SetOutPath "$INSTDIR"
+  File "..\LICENSE.txt"
   WriteUninstaller "$INSTDIR\uninstall.exe"
 SectionEnd
 
@@ -223,6 +225,7 @@ Section "Uninstall"
     RMDir  "$SMPROGRAMS\Spotify Lyrics Widget"
   ${EndIf}
 
+  Delete "$INSTDIR\LICENSE.txt"
   Delete "$INSTDIR\uninstall.exe"
   RMDir  "$INSTDIR"
 

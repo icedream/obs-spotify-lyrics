@@ -101,11 +101,43 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v6
       - uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
+      - name: Package release archives
+        run: |
+          mkdir -p pkg
+
+          for suffix in linux-amd64 linux-arm64; do
+            mkdir -p staging
+            cp dist/lyrics-$suffix LICENSE.txt staging/
+            tar czf pkg/lyrics-$suffix.tar.gz -C staging .
+            rm -rf staging
+          done
+
+          for suffix in windows-amd64 windows-arm64; do
+            mkdir -p staging
+            cp dist/lyrics-$suffix.exe LICENSE.txt staging/
+            (cd staging && zip ../pkg/lyrics-$suffix.zip *)
+            rm -rf staging
+          done
+
+          for suffix in linux-amd64 linux-arm64; do
+            mkdir -p staging
+            cp dist/spotify-lyrics-$suffix.so LICENSE.txt staging/
+            tar czf pkg/obs-plugin-$suffix.tar.gz -C staging .
+            rm -rf staging
+          done
+
+          mkdir -p staging
+          cp dist/spotify-lyrics-windows-amd64.dll LICENSE.txt staging/
+          (cd staging && zip ../pkg/obs-plugin-windows-amd64.zip *)
+          rm -rf staging
+
+          cp dist/obs-spotify-lyrics-*-setup.exe pkg/
       - uses: softprops/action-gh-release@v3
         with:
-          files: dist/*
+          files: pkg/*
 
