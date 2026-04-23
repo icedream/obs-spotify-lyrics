@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -19,7 +20,35 @@ import (
 	"golang.org/x/sys/windows"
 
 	"github.com/icedream/obs-spotify-lyrics/distribution"
+	"github.com/icedream/obs-spotify-lyrics/internal/progressdlg"
 )
+
+// errDownloadCancelled is returned by progressReader when the user cancels.
+var errDownloadCancelled = errors.New("download cancelled by user")
+
+// progressReader wraps an io.Reader, reports bytes read via onProgress, and
+// returns errDownloadCancelled when onCancel returns true.
+type progressReader struct {
+	r          io.Reader
+	read       int64
+	total      int64
+	onProgress func(read, total int64)
+	onCancel   func() bool
+}
+
+func (pr *progressReader) Read(p []byte) (int, error) {
+	if pr.onCancel != nil && pr.onCancel() {
+		return 0, errDownloadCancelled
+	}
+	n, err := pr.r.Read(p)
+	if n > 0 {
+		pr.read += int64(n)
+		if pr.onProgress != nil {
+			pr.onProgress(pr.read, pr.total)
+		}
+	}
+	return n, err
+}
 
 var updateHTTPClient = &http.Client{Timeout: 15 * time.Second}
 
@@ -96,13 +125,46 @@ func openUpdate(info *releaseInfo) {
 		return
 	}
 
+	// Show a native progress dialog during the download. New() returns nil if
+	// the dialog cannot be created; all Dialog methods tolerate a nil receiver,
+	// so the download proceeds regardless.
+	dlg, _ := progressdlg.New()
+	defer dlg.Release()
+	_ = dlg.SetTitle("Spotify Lyrics for OBS - Update")
+	_ = dlg.SetLine(1, "Downloading update...", false)
+	_ = dlg.SetLine(2, installerName, false)
+	_ = dlg.SetCancelMsg("Cancelling download...")
+	var dlgFlags uint32
+	totalBytes := resp.ContentLength
+	if totalBytes > 0 {
+		dlgFlags = progressdlg.FlagAutoTime | progressdlg.FlagNoMinimize
+	} else {
+		dlgFlags = progressdlg.FlagMarquee | progressdlg.FlagNoTime | progressdlg.FlagNoMinimize
+	}
+	_ = dlg.Start(0, dlgFlags)
+
+	pr := &progressReader{
+		r:     resp.Body,
+		total: totalBytes,
+		onProgress: func(read, total int64) {
+			if total > 0 {
+				_ = dlg.SetProgress(uint64(read), uint64(total))
+			}
+		},
+		onCancel: dlg.HasUserCancelled,
+	}
+
 	h := sha256.New()
-	if _, err := io.Copy(tmp, io.TeeReader(resp.Body, h)); err != nil {
+	if _, err := io.Copy(tmp, io.TeeReader(pr, h)); err != nil {
 		tmp.Close()
-		openBrowser(info.HTMLURL)
+		dlg.Stop()
+		if !errors.Is(err, errDownloadCancelled) {
+			openBrowser(info.HTMLURL)
+		}
 		return
 	}
 	tmp.Close()
+	dlg.Stop()
 
 	if hex.EncodeToString(h.Sum(nil)) != expectedHash {
 		openBrowser(info.HTMLURL)
