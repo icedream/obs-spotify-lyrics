@@ -100,6 +100,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write
     steps:
       - uses: actions/checkout@v6
       - uses: actions/download-artifact@v8
@@ -139,6 +140,13 @@ jobs:
           cp dist/obs-spotify-lyrics-*-setup.exe pkg/
       - name: Generate SHA256SUMS
         run: cd pkg && sha256sum * > SHA256SUMS
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+      - name: Sign release assets with cosign
+        run: |
+          for f in pkg/*; do
+            cosign sign-blob --yes --bundle "${f}.bundle" "$f"
+          done
       - uses: softprops/action-gh-release@v3
         with:
           files: pkg/*
