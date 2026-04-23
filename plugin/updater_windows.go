@@ -24,8 +24,13 @@ import (
 var updateHTTPClient = &http.Client{Timeout: 15 * time.Second}
 
 // openUpdate on Windows: prompt user, then download and launch the installer.
+// If the installer is verified and launched, OBS will quit automatically once
+// the installer confirms it is running (after UAC elevation).
 func openUpdate(info *releaseInfo) {
-	msg := fmt.Sprintf("Version %s is available (you have %s).\n\nDownload and run the installer now?",
+	msg := fmt.Sprintf(
+		"Version %s is available (you have %s).\n\n"+
+			"The installer will download automatically. OBS will close and relaunch "+
+			"once the update is complete.\n\nProceed?",
 		info.TagName, pluginVersion)
 	msgPtr, _ := windows.UTF16PtrFromString(msg)
 	titlePtr, _ := windows.UTF16PtrFromString("Spotify Lyrics for OBS - Update Available")
@@ -69,15 +74,16 @@ func openUpdate(info *releaseInfo) {
 	}
 
 	// Download installer to a temp file, hashing while writing.
-	tmp, err := os.CreateTemp("", "obs-spotify-lyrics-*-setup.exe")
+	// No .exe suffix here; it is added by the rename below so Windows executes it.
+	tmp, err := os.CreateTemp("", "obs-spotify-lyrics-*-setup")
 	if err != nil {
 		openBrowser(info.HTMLURL)
 		return
 	}
 	tmpPath := tmp.Name()
-	defer os.Remove(tmpPath)
+	defer os.Remove(tmpPath) //nolint:errcheck
 
-	resp, err := http.Get(installerURL) //nolint:noctx
+	resp, err := updateHTTPClient.Get(installerURL) //nolint:noctx
 	if err != nil {
 		tmp.Close()
 		openBrowser(info.HTMLURL)
@@ -103,13 +109,118 @@ func openUpdate(info *releaseInfo) {
 		return
 	}
 
-	// Rename to .exe so cmd can run it as an executable.
+	// Rename to .exe so Windows can execute it.
 	exePath := tmpPath + ".exe"
 	if err := os.Rename(tmpPath, exePath); err != nil {
 		openBrowser(info.HTMLURL)
 		return
 	}
-	defer os.Remove(exePath)
+	// exePath is intentionally not deferred for removal: the file is locked by
+	// the running installer; the OS will clean it from the temp directory later.
 
-	exec.Command("cmd", "/c", "start", "", exePath).Start() //nolint:errcheck
+	// Create a named event that the installer will signal once it has successfully
+	// elevated (UAC approved).  We wait for this signal before quitting OBS so
+	// that cancelling UAC does not leave OBS closed without the update applied.
+	pid := os.Getpid()
+	eventName, _ := windows.UTF16PtrFromString(fmt.Sprintf("ObsSpotifyLyricsUpdate_%d", pid))
+	hEvent, err := windows.CreateEvent(nil, 1 /* manual-reset */, 0 /* initially unset */, eventName)
+	if err != nil {
+		openBrowser(info.HTMLURL)
+		return
+	}
+
+	// ShellExecute triggers UAC elevation for admin installers and handles
+	// paths with spaces safely, unlike cmd /c start.
+	exePtr, _ := windows.UTF16PtrFromString(exePath)
+	argsPtr, _ := windows.UTF16PtrFromString(fmt.Sprintf("/AUTOUPDATE=%d", pid))
+	const swShowNormal = 1
+	if err := windows.ShellExecute(0, nil, exePtr, argsPtr, nil, swShowNormal); err != nil {
+		windows.CloseHandle(hEvent) //nolint:errcheck
+		openBrowser(info.HTMLURL)
+		return
+	}
+
+	// Wait (in a background goroutine) for the installer to signal the event,
+	// then quit OBS on the UI thread.  Timeout after 2 minutes in case the user
+	// cancels or dismisses the UAC prompt.
+	go func() {
+		defer func() { _ = windows.CloseHandle(hEvent) }()
+		const twoMinutesMS = 2 * 60 * 1000
+		ret, _ := windows.WaitForSingleObject(hEvent, twoMinutesMS)
+		if ret == windows.WAIT_OBJECT_0 {
+			scheduleQuitOBS()
+		}
+	}()
+}
+
+// fetchVerifiedChecksums downloads SHA256SUMS and its detached GPG signature,
+// verifies the signature against the embedded distribution key, and returns
+// the raw SHA256SUMS content if verification succeeds.
+func fetchVerifiedChecksums(checksumURL, checksumSigURL string) ([]byte, error) {
+	checksumData, err := fetchBytes(checksumURL)
+	if err != nil {
+		return nil, err
+	}
+	sigData, err := fetchBytes(checksumSigURL)
+	if err != nil {
+		return nil, err
+	}
+
+	keyRing, err := openpgp.ReadArmoredKeyRing(bytes.NewReader(distribution.SigningKeyASC))
+	if err != nil {
+		return nil, fmt.Errorf("reading distribution signing key: %w", err)
+	}
+	if _, err := openpgp.CheckArmoredDetachedSignature(keyRing, bytes.NewReader(checksumData), bytes.NewReader(sigData), nil); err != nil {
+		return nil, fmt.Errorf("SHA256SUMS signature verification failed: %w", err)
+	}
+	return checksumData, nil
+}
+
+// fetchBytes downloads a URL and returns its body, requiring HTTP 200.
+func fetchBytes(url string) ([]byte, error) {
+	resp, err := updateHTTPClient.Get(url) //nolint:noctx
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close() //nolint:errcheck
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("HTTP %d fetching %s", resp.StatusCode, url)
+	}
+	return io.ReadAll(resp.Body)
+}
+
+// parseExpectedHash parses sha256sum output and returns the lowercase hex hash
+// for filename, or ("", nil) if the file is not listed.
+func parseExpectedHash(data []byte, filename string) (string, error) {
+	// sha256sum format: "<64 hex chars>  <filename>" (text) or "<64 hex chars> *<filename>" (binary)
+	scanner := bufio.NewScanner(bytes.NewReader(data))
+	for scanner.Scan() {
+		line := scanner.Text()
+		if len(line) < 66 {
+			continue
+		}
+		hash := strings.ToLower(line[:64])
+		if !isHex(hash) {
+			continue
+		}
+		// Skip the separator ("  " or " *") to get the filename.
+		rest := strings.TrimLeft(line[64:], " *")
+		if rest == filename {
+			return hash, nil
+		}
+	}
+	return "", scanner.Err()
+}
+
+func isHex(s string) bool {
+	for _, c := range s {
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) {
+			return false
+		}
+	}
+	return true
+}
+
+func openBrowser(url string) {
+	_ = exec.Command("rundll32.exe", "url.dll,FileProtocolHandler", url).Start()
 }

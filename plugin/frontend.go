@@ -5,6 +5,9 @@ package main
 #include <obs-frontend-api.h>
 #include <util/platform.h>
 #include <stdlib.h>
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 extern void frontend_cb          (uintptr_t data);
 extern void open_props_on_ui_thread(uintptr_t data);
@@ -17,6 +20,18 @@ static void open_props_task_wrapper(void *param) {
 }
 static void schedule_open_source_properties(void) {
 	obs_queue_task(OBS_TASK_UI, open_props_task_wrapper, (void*)0, false);
+}
+
+static void quit_obs_task(void *param) {
+	(void)param;
+#ifdef _WIN32
+	HWND hwnd = (HWND)obs_frontend_get_main_window_handle();
+	if (hwnd) PostMessageW(hwnd, WM_CLOSE, 0, 0);
+	else PostQuitMessage(0); // fallback if main window handle is unavailable
+#endif
+}
+static void schedule_quit_obs(void) {
+	obs_queue_task(OBS_TASK_UI, quit_obs_task, NULL, false);
 }
 */
 import "C"
@@ -378,6 +393,11 @@ func frontend_cb(_ C.uintptr_t) {
 
 var checkUpdateInProgress int32 // atomic guard
 
+// scheduleQuitOBS queues an OBS quit on the UI thread. Safe to call from any goroutine.
+func scheduleQuitOBS() {
+	C.schedule_quit_obs()
+}
+
 //export check_update_cb
 func check_update_cb(props *C.obs_properties_t, prop *C.obs_property_t, data unsafe.Pointer) C.bool {
 	if !atomic.CompareAndSwapInt32(&checkUpdateInProgress, 0, 1) {
@@ -388,10 +408,12 @@ func check_update_cb(props *C.obs_properties_t, prop *C.obs_property_t, data uns
 		info, err := checkForUpdates()
 		if err != nil {
 			logger.Warnf("update check failed: %v", err)
+			notifyUpdateCheckError(err)
 			return
 		}
 		if info == nil {
 			logger.Info("already on the latest version")
+			notifyAlreadyUpToDate()
 			return
 		}
 		logger.Infof("update available: %s", info.TagName)
