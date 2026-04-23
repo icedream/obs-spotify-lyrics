@@ -108,6 +108,10 @@ from OBS, if so desired. If you choose to do so and still want to use the
 *Spotify Lyrics* source with it, you can select *External server* and provide
 the URL to it here.
 
+## License
+
+This project is licensed under the [GNU General Public License v3.0](LICENSE.txt).
+
 ## Credits
 
 The Spotify lyrics client in this project is inspired by
