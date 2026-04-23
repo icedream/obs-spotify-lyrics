@@ -76,6 +76,18 @@ make clean
 
 Removes all build outputs and the downloaded Windows SDK files.
 
+> **Gotcha:** do not combine `clean` and a build target in a single `make`
+> invocation (e.g. `make clean build-installer-windows-amd64`). Make evaluates
+> prerequisite freshness before running any recipes, so it will see the OBS SDK
+> stamp files as up-to-date, skip re-downloading them, then `clean` will delete
+> the SDK mid-run and the linker will fail with `cannot find -lobs`. Run them as
+> two separate commands instead:
+>
+> ```sh
+> make clean
+> make build-installer-windows-amd64
+> ```
+
 ## Tests and linting
 
 ```sh
