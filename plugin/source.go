@@ -466,7 +466,7 @@ func source_get_props(data C.uintptr_t) *C.obs_properties_t {
 	)
 	C.free(unsafe.Pointer(cssModeKeyCS))
 	C.free(unsafe.Pointer(cssModeListLabelCS))
-	simpleLabelCS, simpleValCS := C.CString("Simple (CSS variables)"), C.CString("simple")
+	simpleLabelCS, simpleValCS := C.CString("Visual editor"), C.CString("simple")
 	C.obs_property_list_add_string(modeList, simpleLabelCS, simpleValCS)
 	C.free(unsafe.Pointer(simpleLabelCS))
 	C.free(unsafe.Pointer(simpleValCS))
