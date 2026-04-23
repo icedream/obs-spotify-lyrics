@@ -158,6 +158,7 @@ jobs:
           fi
           echo "$GPG_SIGNING_KEY" | gpg --batch --import
           echo "$GPG_SIGNING_PASSPHRASE" | gpg --batch --yes --passphrase-fd 0 \
+            --pinentry-mode loopback \
             --detach-sign --armor --output pkg/SHA256SUMS.asc pkg/SHA256SUMS
       - uses: softprops/action-gh-release@v3
         with:
