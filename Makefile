@@ -12,6 +12,7 @@
 
 VERSION     ?= $(shell git describe --always --tags 2>/dev/null || echo dev)
 OBS_VERSION ?= 32.1.2
+GITHUB_REPO ?= icedream/obs-spotify-lyrics
 MAKENSIS    ?= makensis
 
 # Set UPX= to the upx binary (e.g. make UPX=upx ...) to enable optional
@@ -71,13 +72,15 @@ build-binary-windows-arm64: cmd/lyrics/gen_resource_windows_arm64.syso
 build-plugin-linux-amd64:
 	$(MAKE) -C plugin \
 		PLUGIN_SO="$(CURDIR)/spotify-lyrics-linux-amd64.so" \
-		VERSION="$(VERSION)"
+		VERSION="$(VERSION)" \
+		GITHUB_REPO="$(GITHUB_REPO)"
 
 .PHONY: build-plugin-linux-arm64
 build-plugin-linux-arm64:
 	$(MAKE) -C plugin \
 		PLUGIN_SO="$(CURDIR)/spotify-lyrics-linux-arm64.so" \
-		VERSION="$(VERSION)"
+		VERSION="$(VERSION)" \
+		GITHUB_REPO="$(GITHUB_REPO)"
 
 $(OBS_WIN_SRC)/.stamp:
 	git clone --filter=blob:none --no-checkout --depth=1 \
@@ -119,7 +122,7 @@ build-plugin-windows-amd64: $(OBS_WIN_SRC)/.stamp $(OBS_WIN_SDK)/.stamp
 		CGO_LDFLAGS="-L$(CURDIR)/$(OBS_WIN_SDK) -lobs -lobs-frontend-api" \
 		go build -buildmode=c-shared \
 		-trimpath \
-		-ldflags "-s -w -X main.pluginVersion=$(VERSION)" \
+		-ldflags "-s -w -X main.pluginVersion=$(VERSION) -X main.githubReleasesURL=https://api.github.com/repos/$(GITHUB_REPO)/releases/latest" \
 		-o spotify-lyrics-windows-amd64.dll ./plugin/
 
 .PHONY: build-installer-windows-amd64

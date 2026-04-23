@@ -62,3 +62,17 @@ You can also verify individual file checksums:
 1. Tag the commit: `git tag -s v<VERSION>` (use a signed tag if possible)
 2. Push the tag: `git push origin v<VERSION>`
 3. The release CI workflow runs automatically and publishes the release with signed assets.
+
+---
+
+## Yanking a Release
+
+If a release must be pulled due to a critical bug, **do not simply delete it**. The in-app update checker only suggests upgrades (newer semver), so if a user is on the yanked version and it becomes unavailable without a replacement, they will never be prompted to update.
+
+The correct procedure:
+
+1. Tag a new release at a higher version (e.g. `v0.2.1` to replace a bad `v0.2.0`) containing the fix or revert.
+2. Push the new tag and let CI publish it.
+3. Only then remove or mark the bad release as a pre-release/draft on GitHub to suppress it from `/releases/latest`.
+
+This ensures users on the broken version are always offered a path forward.

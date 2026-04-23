@@ -9,10 +9,9 @@ package main
 extern void frontend_cb          (uintptr_t data);
 extern void open_props_on_ui_thread(uintptr_t data);
 extern bool mode_changed_cb      (obs_properties_t *props, obs_property_t *prop, obs_data_t *settings);
+extern bool check_update_cb      (obs_properties_t *props, obs_property_t *prop, void *data);
 
 // Dispatches open_props_on_ui_thread to run on the OBS UI thread.
-// No source pointer is passed; the callback reads dummySource on the main
-// thread where it is safe to access.
 static void open_props_task_wrapper(void *param) {
 	open_props_on_ui_thread((uintptr_t)param);
 }
@@ -226,6 +225,11 @@ func dummy_get_props(_ C.uintptr_t) *C.obs_properties_t {
 	C.free(unsafe.Pointer(projURLLabelCS))
 	C.obs_property_text_set_info_type(p, C.OBS_TEXT_INFO_NORMAL)
 
+	checkUpdateKeyCS, checkUpdateLabelCS := C.CString("check_update"), C.CString("Check for Updates")
+	C.obs_properties_add_button(props, checkUpdateKeyCS, checkUpdateLabelCS, C.obs_property_clicked_t(unsafe.Pointer(C.check_update_cb)))
+	C.free(unsafe.Pointer(checkUpdateKeyCS))
+	C.free(unsafe.Pointer(checkUpdateLabelCS))
+
 	cfgMu.Lock()
 	mode := cfg.Mode
 	cfgMu.Unlock()
@@ -370,6 +374,30 @@ func frontend_cb(_ C.uintptr_t) {
 	if s != nil {
 		C.obs_frontend_open_source_properties(s)
 	}
+}
+
+var checkUpdateInProgress int32 // atomic guard
+
+//export check_update_cb
+func check_update_cb(props *C.obs_properties_t, prop *C.obs_property_t, data unsafe.Pointer) C.bool {
+	if !atomic.CompareAndSwapInt32(&checkUpdateInProgress, 0, 1) {
+		return false // already checking
+	}
+	go func() {
+		defer atomic.StoreInt32(&checkUpdateInProgress, 0)
+		info, err := checkForUpdates()
+		if err != nil {
+			logger.Warnf("update check failed: %v", err)
+			return
+		}
+		if info == nil {
+			logger.Info("already on the latest version")
+			return
+		}
+		logger.Infof("update available: %s", info.TagName)
+		openUpdate(info)
+	}()
+	return false
 }
 
 /* Property modified callback */

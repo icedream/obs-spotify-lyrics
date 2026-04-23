@@ -3,6 +3,7 @@ module github.com/icedream/obs-spotify-lyrics
 go 1.26.2
 
 require (
+	github.com/ProtonMail/go-crypto v1.4.1
 	github.com/davecgh/go-spew v1.1.1
 	github.com/godbus/dbus/v5 v5.2.2
 	github.com/gorilla/websocket v1.5.3
@@ -12,12 +13,14 @@ require (
 	github.com/urfave/cli-altsrc/v3 v3.1.0
 	github.com/urfave/cli/v3 v3.8.0
 	golang.org/x/crypto v0.50.0
+	golang.org/x/mod v0.35.0
 	golang.org/x/sys v0.43.0
 	modernc.org/sqlite v1.49.1
 )
 
 require (
 	github.com/akavel/rsrc v0.10.2 // indirect
+	github.com/cloudflare/circl v1.6.2 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/josephspurrier/goversioninfo v1.5.0 // indirect

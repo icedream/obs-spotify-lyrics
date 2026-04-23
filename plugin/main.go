@@ -51,14 +51,15 @@ extern void                dummy_update        (uintptr_t data, obs_data_t *sett
 
 // Frontend
 
-extern void frontend_event_cb (enum obs_frontend_event event, uintptr_t data);
-extern void frontend_cb       (uintptr_t data);
+extern void frontend_event_cb        (enum obs_frontend_event event, uintptr_t data);
+extern void frontend_cb              (uintptr_t data);
 
 // Property callbacks
 
 extern bool mode_changed_cb            (obs_properties_t *props, obs_property_t *prop, obs_data_t *settings);
 extern bool source_css_mode_changed_cb (obs_properties_t *props, obs_property_t *prop, obs_data_t *settings);
 extern bool source_reload_cb           (obs_properties_t *props, obs_property_t *prop, void *data);
+extern bool check_update_cb            (obs_properties_t *props, obs_property_t *prop, void *data);
 
 // C helper declared in helpers.c
 
