@@ -9,6 +9,8 @@ to give your stream chat an opportunity to actually understand the lyrics of the
 Spotify tracks you listen to in the background, then this is the perfect
 customizable solution for you.
 
+https://github.com/user-attachments/assets/833cb81e-6676-4127-8830-0d3772de502a
+
 <p align="center">
   <img src="assets/screenshots/windows-source-preview-opensans-nooutline.png" width="800" alt="Lyrics widget on stream showing three lines: two faded and one highlighted">
 </p>
