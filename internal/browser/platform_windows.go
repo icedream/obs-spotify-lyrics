@@ -226,8 +226,7 @@ func readFileLocked(path string) ([]byte, error) {
 	)
 	if err != nil {
 		if err == windows.ERROR_SHARING_VIOLATION {
-			return nil, &os.PathError{Op: "open", Path: path,
-				Err: fmt.Errorf("%w (browser may need to be closed for cookie auto-discovery)", err)}
+			return nil, fmt.Errorf("%w: %w", ErrBrowserLocked, err)
 		}
 		return nil, &os.PathError{Op: "open", Path: path, Err: err}
 	}

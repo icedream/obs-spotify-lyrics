@@ -39,7 +39,11 @@ func serverStart(port int, spDC, deviceID string) error {
 		if err != nil {
 			logger.Warnf("sp_dc auto-discovery failed: %v", err)
 			srvMu.Lock()
-			serverLastError = "sp_dc cookie not found, please enter it in the plugin settings"
+			if errors.Is(err, browser.ErrBrowserLocked) {
+				serverLastError = "sp_dc auto-discovery failed: a browser profile was locked - close running browsers and try again, or enter the cookie manually"
+			} else {
+				serverLastError = "sp_dc cookie not found, please enter it in the plugin settings"
+			}
 			srvMu.Unlock()
 			return err
 		}

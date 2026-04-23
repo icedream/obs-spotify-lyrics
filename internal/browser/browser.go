@@ -154,6 +154,10 @@ func (s *chromiumSource) readCookie(name, domain string) (string, error) {
 	return "", rows.Err()
 }
 
+// ErrBrowserLocked is returned when a browser has a cookie database locked,
+// typically because the browser is running. Close the browser and retry.
+var ErrBrowserLocked = errors.New("browser has a cookie file locked")
+
 // copyDBToTemp copies src (and its -wal/-shm siblings if present) to a temp
 // location. The returned cleanup function removes the temp files.
 func copyDBToTemp(src string) (string, func(), error) {
@@ -174,10 +178,18 @@ func copyDBToTemp(src string) (string, func(), error) {
 	_ = f.Close()
 
 	// Copy WAL and SHM so SQLite sees a consistent snapshot.
+	// Propagate unexpected errors (e.g. lock violations) but ignore missing
+	// sidecar files, as they are not always present.
 	for _, suffix := range []string{"-wal", "-shm"} {
-		if sidecar, err := readFileLocked(src + suffix); err == nil {
-			_ = os.WriteFile(tmp+suffix, sidecar, 0o600)
+		sidecar, err := readFileLocked(src + suffix)
+		if err != nil {
+			if !errors.Is(err, os.ErrNotExist) {
+				_ = os.Remove(tmp)
+				return "", func() {}, err
+			}
+			continue
 		}
+		_ = os.WriteFile(tmp+suffix, sidecar, 0o600)
 	}
 
 	cleanup := func() {
