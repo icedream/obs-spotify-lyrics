@@ -2,18 +2,25 @@
   <img src="assets/icon-app.svg" width="96" alt=""><br>
   <h1>Spotify Lyrics for OBS</h1>
   <p>Display the currently playing Spotify track's lyrics as a customizable HTML widget right inside OBS Studio.</p>
+  <a href="https://github.com/icedream/obs-spotify-lyrics/releases/latest"><img src="https://img.shields.io/github/v/release/icedream/obs-spotify-lyrics?style=for-the-badge&label=%E2%86%93+Download+latest+release&color=brightgreen" alt="Download latest release"></a>
 </div>
-
-If you as a streamer enjoy Karaoke and use Spotify for it, or if you just want
-to give your stream chat an opportunity to actually understand the lyrics of the
-Spotify tracks you listen to in the background, then this is the perfect
-customizable solution for you.
 
 https://github.com/user-attachments/assets/833cb81e-6676-4127-8830-0d3772de502a
 
 <p align="center">
   <img src="assets/screenshots/windows-source-preview-opensans-nooutline.png" width="800" alt="Lyrics widget on stream showing three lines: two faded and one highlighted">
 </p>
+
+If you as a streamer enjoy Karaoke and use Spotify for it, or if you just want
+to give your stream chat an opportunity to actually understand the lyrics of the
+Spotify tracks you listen to in the background, then this is the perfect
+customizable solution for you.
+
+## Installation
+
+People wanting to get an out-of-the-box working experience can just grab the
+OBS plugin setup EXE for their respective platform. See the
+[Requirements](#requirements) section for what you need to have set up first.
 
 ## What's inside
 
@@ -44,13 +51,6 @@ auto-detection of the Spotify token to work:
 - Opera (normal or GX)
 
 **Login through the official Spotify app is *not* supported.**
-
-## Installation
-
-**[Grab the latest release from here!](https://github.com/icedream/obs-spotify-lyrics/releases)**
-
-People wanting to get an out-of-the-box working experience can just grab the
-OBS plugin for their respective platform.
 
 ## Customization
 
