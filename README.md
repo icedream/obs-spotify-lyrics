@@ -19,7 +19,7 @@ customizable solution for you.
 ## Installation
 
 People wanting to get an out-of-the-box working experience can just grab the
-OBS plugin setup EXE for their respective platform. See the
+OBS plugin/setup for their respective platform. See the
 [Requirements](#requirements) section for what you need to have set up first.
 
 ## What's inside
