@@ -5,7 +5,7 @@
   <a href="https://github.com/icedream/obs-spotify-lyrics/releases/latest"><img src="https://img.shields.io/github/v/release/icedream/obs-spotify-lyrics?style=for-the-badge&label=%E2%86%93+Download+latest+release&color=brightgreen" alt="Download latest release"></a>
 </div>
 
-https://github.com/user-attachments/assets/833cb81e-6676-4127-8830-0d3772de502a
+https://github.com/user-attachments/assets/957da045-ad25-4af3-bd14-4dbf86f1158d
 
 <p align="center">
   <img src="assets/screenshots/windows-source-preview-opensans-nooutline.png" width="800" alt="Lyrics widget on stream showing three lines: two faded and one highlighted">
