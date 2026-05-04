@@ -52,6 +52,8 @@ auto-detection of the Spotify token to work:
 
 **Login through the official Spotify app is *not* supported.**
 
+You may need to close the browser before starting OBS for login token detection to work reliably.
+
 ## Customization
 
 The widget that is shipped with this plugin provides a few variables to tweak
