@@ -89,6 +89,8 @@ You do not need to use the HTML widget that's shipped with this project. You can
 write your own HTML widget from scratch and simply reuse the WebSocket from the
 webserver to provide you with the data from Spotify.
 
+The original HTML widget file can be found [here](internal/widget/widget.html).
+
 For documentation on how to talk to the WebSocket and what information it provides,
 check [`WebSocket.md`](WebSocket.md).
 
