@@ -57,7 +57,7 @@ jobs:
         run: sudo apt-get update -y && sudo apt-get install -y libobs-dev
       - uses: golangci/golangci-lint-action@v9
         with:
-          version: v2.11.4
+          version: v2.12.2
 
   build-binary:
     runs-on: ubuntu-latest
