@@ -141,7 +141,7 @@ jobs:
       - name: Generate SHA256SUMS
         run: cd pkg && sha256sum * > SHA256SUMS
       - name: Install cosign
-        uses: sigstore/cosign-installer@v4.1.1
+        uses: sigstore/cosign-installer@v4.1.2
       - name: Sign release assets with cosign
         run: |
           for f in pkg/*; do
