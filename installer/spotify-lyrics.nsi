@@ -15,7 +15,27 @@ Name "Spotify Lyrics for OBS"
 OutFile "..\obs-spotify-lyrics-${VERSION}-setup.exe"
 Unicode True
 
+!define PRODUCT_AUTHOR "Carl Kittelberger (Icedream)"
+!define PRODUCT_NAME "Spotify Lyrics for OBS"
+!define SETUP_DESCRIPTION "${PRODUCT_NAME} Installer"
+!define VER_PRODUCTVERSION "${PE_VERSION}"
+!define VER_FILEVERSION "${PE_VERSION}"
+
 RequestExecutionLevel admin
+
+; ---------------------------------------------------------------------------
+; Version info
+; ---------------------------------------------------------------------------
+VIProductVersion "${VER_PRODUCTVERSION}"
+VIAddVersionKey "ProductName" "${PRODUCT_NAME}"
+VIAddVersionKey "CompanyName" "${PRODUCT_AUTHOR}"
+VIAddVersionKey "FileDescription" "${SETUP_DESCRIPTION}"
+VIAddVersionKey "FileVersion" "${VER_FILEVERSION}"
+VIAddVersionKey "InternalName" "spotify-lyrics"
+VIAddVersionKey "LegalCopyright" "Copyright © 2026 ${PRODUCT_AUTHOR}"
+VIAddVersionKey "OriginalFilename" "obs-spotify-lyrics-${VERSION}-setup.exe"
+VIAddVersionKey "ProductVersion" "${VER_PRODUCTVERSION}"
+VIAddVersionKey "Comments" "https://github.com/icedream/obs-spotify-lyrics"
 
 InstallDir "$PROGRAMFILES64\Spotify Lyrics Widget"
 
