@@ -23,7 +23,7 @@ require (
 	github.com/cloudflare/circl v1.6.3 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/josephspurrier/goversioninfo v1.5.0 // indirect
+	github.com/josephspurrier/goversioninfo v1.7.0 // indirect
 	github.com/mattn/go-isatty v0.0.21 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
