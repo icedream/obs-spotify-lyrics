@@ -14,7 +14,7 @@ require (
 	github.com/urfave/cli/v3 v3.9.0
 	golang.org/x/crypto v0.51.0
 	golang.org/x/mod v0.36.0
-	golang.org/x/sys v0.44.0
+	golang.org/x/sys v0.45.0
 	modernc.org/sqlite v1.50.1
 )
 
