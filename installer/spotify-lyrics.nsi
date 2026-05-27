@@ -11,6 +11,10 @@
   !define VERSION "dev"
 !endif
 
+!ifndef PE_VERSION
+  !define PE_VERSION "0.0.0.0"
+!endif
+
 Name "Spotify Lyrics for OBS"
 OutFile "..\obs-spotify-lyrics-${VERSION}-setup.exe"
 Unicode True

@@ -73,6 +73,11 @@ jobs:
         with:
           go-version-file: go.mod
       - run: make build-binary-${{ matrix.suffix }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: binary-${{ matrix.suffix }}
+          path: lyrics-${{ matrix.suffix }}*
+          retention-days: 1
 
   build-plugin-linux:
     strategy:
@@ -112,4 +117,30 @@ jobs:
             obs-win-sdk
           key: obs-win-sdk-${{ env.OBS_VERSION }}-x64
       - run: make build-plugin-windows-amd64
+      - uses: actions/upload-artifact@v7
+        with:
+          name: plugin-windows-amd64
+          path: spotify-lyrics-windows-amd64.dll
+          retention-days: 1
 
+  build-installer-windows:
+    needs: [build-binary, build-plugin-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v8
+        with:
+          name: binary-windows-amd64
+      - uses: actions/download-artifact@v8
+        with:
+          name: plugin-windows-amd64
+      - name: Install NSIS
+        run: sudo apt-get update -y && sudo apt-get install -y nsis
+      - run: make package-installer-windows-amd64
+      - uses: actions/upload-artifact@v7
+        with:
+          name: installer-windows-amd64
+          path: obs-spotify-lyrics-*-setup.exe
+          retention-days: 1
