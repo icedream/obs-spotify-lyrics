@@ -132,7 +132,7 @@ build-installer-windows-amd64: build-binary-windows-amd64 build-plugin-windows-a
 
 .PHONY: package-installer-windows-amd64
 package-installer-windows-amd64:
-	$(MAKENSIS) -DVERSION=$(VERSION) installer/spotify-lyrics.nsi
+	$(MAKENSIS) -DVERSION=$(VERSION) -DPE_VERSION=$(PE_VERSION) installer/spotify-lyrics.nsi
 
 ###############################################################################
 # Cleanup
