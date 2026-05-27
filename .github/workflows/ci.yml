@@ -123,8 +123,90 @@ jobs:
           path: spotify-lyrics-windows-amd64.dll
           retention-days: 1
 
-  build-installer-windows:
+  sign-windows-binaries:
     needs: [build-binary, build-plugin-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check signing credentials
+        id: check
+        env:
+          OSSLSIGNSERVER_URL: ${{ secrets.OSSLSIGNSERVER_URL }}
+          OSSLSIGNSERVER_API_KEY_SECRET: ${{ secrets.OSSLSIGNSERVER_API_KEY_SECRET }}
+          OSSLSIGNSERVER_PROFILE: ${{ vars.OSSLSIGNSERVER_PROFILE }}
+        run: |
+          if [ -z "$OSSLSIGNSERVER_URL" ] || [ -z "$OSSLSIGNSERVER_API_KEY_SECRET" ] || [ -z "$OSSLSIGNSERVER_PROFILE" ]; then
+            echo "available=false" >> $GITHUB_OUTPUT
+            echo "Signing credentials not available"
+            exit 0
+          fi
+          echo "available=true" >> $GITHUB_OUTPUT
+      - uses: actions/download-artifact@v8
+        if: steps.check.outputs.available == 'true'
+        with:
+          name: binary-windows-amd64
+          path: artifacts
+      - uses: actions/download-artifact@v8
+        if: steps.check.outputs.available == 'true'
+        with:
+          name: binary-windows-arm64
+          path: artifacts
+      - uses: actions/download-artifact@v8
+        if: steps.check.outputs.available == 'true'
+        with:
+          name: plugin-windows-amd64
+          path: artifacts
+      - name: Sign lyrics-windows-amd64.exe
+        if: steps.check.outputs.available == 'true'
+        uses: icedream/sign-with-osslsignserver-action@acc508fca11a08518189b3526ecd8d6ffdeaa4e9
+        with:
+          url: ${{ secrets.OSSLSIGNSERVER_URL }}
+          api-key-secret: ${{ secrets.OSSLSIGNSERVER_API_KEY_SECRET }}
+          profile: ${{ vars.OSSLSIGNSERVER_PROFILE }}
+          file: artifacts/lyrics-windows-amd64.exe
+          description: 'Spotify Lyrics for OBS'
+          description-url: 'https://github.com/icedream/obs-spotify-lyrics'
+      - name: Sign lyrics-windows-arm64.exe
+        if: steps.check.outputs.available == 'true'
+        uses: icedream/sign-with-osslsignserver-action@acc508fca11a08518189b3526ecd8d6ffdeaa4e9
+        with:
+          url: ${{ secrets.OSSLSIGNSERVER_URL }}
+          api-key-secret: ${{ secrets.OSSLSIGNSERVER_API_KEY_SECRET }}
+          profile: ${{ vars.OSSLSIGNSERVER_PROFILE }}
+          file: artifacts/lyrics-windows-arm64.exe
+          description: 'Spotify Lyrics for OBS'
+          description-url: 'https://github.com/icedream/obs-spotify-lyrics'
+      - name: Sign spotify-lyrics-windows-amd64.dll
+        if: steps.check.outputs.available == 'true'
+        uses: icedream/sign-with-osslsignserver-action@acc508fca11a08518189b3526ecd8d6ffdeaa4e9
+        with:
+          url: ${{ secrets.OSSLSIGNSERVER_URL }}
+          api-key-secret: ${{ secrets.OSSLSIGNSERVER_API_KEY_SECRET }}
+          profile: ${{ vars.OSSLSIGNSERVER_PROFILE }}
+          file: artifacts/spotify-lyrics-windows-amd64.dll
+          description: 'Spotify Lyrics for OBS'
+          description-url: 'https://github.com/icedream/obs-spotify-lyrics'
+      - uses: actions/upload-artifact@v7
+        if: steps.check.outputs.available == 'true'
+        with:
+          name: binary-windows-amd64
+          path: artifacts/lyrics-windows-amd64.exe
+          overwrite: true
+      - uses: actions/upload-artifact@v7
+        if: steps.check.outputs.available == 'true'
+        with:
+          name: binary-windows-arm64
+          path: artifacts/lyrics-windows-arm64.exe
+          overwrite: true
+      - uses: actions/upload-artifact@v7
+        if: steps.check.outputs.available == 'true'
+        with:
+          name: plugin-windows-amd64
+          path: artifacts/spotify-lyrics-windows-amd64.dll
+          overwrite: true
+
+  build-installer-windows:
+    needs: [sign-windows-binaries]
+    if: success() || (needs.sign-windows-binaries.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -144,3 +226,52 @@ jobs:
           name: installer-windows-amd64
           path: obs-spotify-lyrics-*-setup.exe
           retention-days: 1
+
+  sign-installer:
+    needs: [build-installer-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check signing credentials
+        id: check
+        env:
+          OSSLSIGNSERVER_URL: ${{ secrets.OSSLSIGNSERVER_URL }}
+          OSSLSIGNSERVER_API_KEY_SECRET: ${{ secrets.OSSLSIGNSERVER_API_KEY_SECRET }}
+          OSSLSIGNSERVER_PROFILE: ${{ vars.OSSLSIGNSERVER_PROFILE }}
+        run: |
+          if [ -z "$OSSLSIGNSERVER_URL" ] || [ -z "$OSSLSIGNSERVER_API_KEY_SECRET" ] || [ -z "$OSSLSIGNSERVER_PROFILE" ]; then
+            echo "available=false" >> $GITHUB_OUTPUT
+            echo "Signing credentials not available"
+            exit 0
+          fi
+          echo "available=true" >> $GITHUB_OUTPUT
+      - uses: actions/download-artifact@v8
+        if: steps.check.outputs.available == 'true'
+        with:
+          name: installer-windows-amd64
+          path: artifacts
+      - name: Find installer file
+        if: steps.check.outputs.available == 'true'
+        id: installer
+        run: |
+          INSTALLER=$(ls artifacts/obs-spotify-lyrics-*-setup.exe 2>/dev/null | head -1)
+          if [ -z "$INSTALLER" ]; then
+            echo "::error::Installer not found"
+            exit 1
+          fi
+          echo "path=$INSTALLER" >> $GITHUB_OUTPUT
+      - name: Sign installer
+        if: steps.check.outputs.available == 'true'
+        uses: icedream/sign-with-osslsignserver-action@acc508fca11a08518189b3526ecd8d6ffdeaa4e9
+        with:
+          url: ${{ secrets.OSSLSIGNSERVER_URL }}
+          api-key-secret: ${{ secrets.OSSLSIGNSERVER_API_KEY_SECRET }}
+          profile: ${{ vars.OSSLSIGNSERVER_PROFILE }}
+          file: ${{ steps.installer.outputs.path }}
+          description: 'Spotify Lyrics for OBS'
+          description-url: 'https://github.com/icedream/obs-spotify-lyrics'
+      - uses: actions/upload-artifact@v7
+        if: steps.check.outputs.available == 'true'
+        with:
+          name: installer-windows-amd64
+          path: ${{ steps.installer.outputs.path }}
+          overwrite: true
