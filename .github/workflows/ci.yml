@@ -110,7 +110,7 @@ jobs:
       - name: Install MinGW cross-compiler and gendef
         run: sudo apt-get install -y mingw-w64 mingw-w64-tools
       - name: Cache OBS Windows SDK
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             obs-src
