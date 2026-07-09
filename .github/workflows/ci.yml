@@ -126,6 +126,9 @@ jobs:
   sign-windows-binaries:
     needs: [build-binary, build-plugin-windows]
     runs-on: ubuntu-latest
+    concurrency:
+      group: signing
+      cancel-in-progress: false
     steps:
       - name: Check signing credentials
         id: check
@@ -230,6 +233,9 @@ jobs:
   sign-installer:
     needs: [build-installer-windows]
     runs-on: ubuntu-latest
+    concurrency:
+      group: signing
+      cancel-in-progress: false
     steps:
       - name: Check signing credentials
         id: check
