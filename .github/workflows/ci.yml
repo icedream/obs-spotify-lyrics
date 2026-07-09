@@ -160,7 +160,7 @@ jobs:
           path: artifacts
       - name: Sign lyrics-windows-amd64.exe
         if: steps.check.outputs.available == 'true'
-        uses: icedream/sign-with-osslsignserver-action@acc508fca11a08518189b3526ecd8d6ffdeaa4e9
+        uses: icedream/sign-with-osslsignserver-action@a242a080c2acee5a0a44031cc4490bebdcdbb5dd
         with:
           url: ${{ secrets.OSSLSIGNSERVER_URL }}
           api-key-secret: ${{ secrets.OSSLSIGNSERVER_API_KEY_SECRET }}
@@ -170,7 +170,7 @@ jobs:
           description-url: 'https://github.com/icedream/obs-spotify-lyrics'
       - name: Sign lyrics-windows-arm64.exe
         if: steps.check.outputs.available == 'true'
-        uses: icedream/sign-with-osslsignserver-action@acc508fca11a08518189b3526ecd8d6ffdeaa4e9
+        uses: icedream/sign-with-osslsignserver-action@a242a080c2acee5a0a44031cc4490bebdcdbb5dd
         with:
           url: ${{ secrets.OSSLSIGNSERVER_URL }}
           api-key-secret: ${{ secrets.OSSLSIGNSERVER_API_KEY_SECRET }}
@@ -180,7 +180,7 @@ jobs:
           description-url: 'https://github.com/icedream/obs-spotify-lyrics'
       - name: Sign spotify-lyrics-windows-amd64.dll
         if: steps.check.outputs.available == 'true'
-        uses: icedream/sign-with-osslsignserver-action@acc508fca11a08518189b3526ecd8d6ffdeaa4e9
+        uses: icedream/sign-with-osslsignserver-action@a242a080c2acee5a0a44031cc4490bebdcdbb5dd
         with:
           url: ${{ secrets.OSSLSIGNSERVER_URL }}
           api-key-secret: ${{ secrets.OSSLSIGNSERVER_API_KEY_SECRET }}
@@ -267,7 +267,7 @@ jobs:
           echo "path=$INSTALLER" >> $GITHUB_OUTPUT
       - name: Sign installer
         if: steps.check.outputs.available == 'true'
-        uses: icedream/sign-with-osslsignserver-action@acc508fca11a08518189b3526ecd8d6ffdeaa4e9
+        uses: icedream/sign-with-osslsignserver-action@a242a080c2acee5a0a44031cc4490bebdcdbb5dd
         with:
           url: ${{ secrets.OSSLSIGNSERVER_URL }}
           api-key-secret: ${{ secrets.OSSLSIGNSERVER_API_KEY_SECRET }}
