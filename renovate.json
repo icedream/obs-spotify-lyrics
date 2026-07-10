@@ -1,6 +1,12 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
+  "packageRules": [
+    {
+      "matchFileNames": ["go.mod", "go.sum"],
+      "groupName": "goDeps"
+    }
+  ],
   "customManagers": [
     {
       "customType": "regex",
@@ -11,5 +17,7 @@
       "depNameTemplate": "obsproject/obs-studio",
       "extractVersionTemplate": "^(?<version>.+)$"
     }
-  ]
+  ],
+  "prConcurrentLimit": 10,
+  "prHourlyLimit": 2
 }
