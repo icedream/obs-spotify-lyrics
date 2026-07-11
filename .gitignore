@@ -16,8 +16,9 @@ obs-spotify-lyrics-*-setup.exe
 assets/.build/
 assets/*.png
 
-# Generated Go resource files (go generate in cmd/lyrics)
+# Generated Go resource files (go generate in cmd/lyrics and plugin)
 cmd/lyrics/gen_*.syso
+plugin/gen_*.syso
 
 # Downloaded SDKs
 obs-src/
