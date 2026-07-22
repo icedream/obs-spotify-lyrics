@@ -12,7 +12,7 @@
 
 VERSION     ?= $(shell git describe --always --tags 2>/dev/null || echo dev)
 PE_VERSION  ?= $(shell (git describe --always --tags --long 2>/dev/null || echo 0.0.0-0) | sed 's/^v//; s/-g.*//' | awk -F'-' '{printf "%s.%s", $$1, $$2}')
-OBS_VERSION ?= 32.1.2
+OBS_VERSION ?= 32.2.0
 GITHUB_REPO ?= icedream/obs-spotify-lyrics
 MAKENSIS    ?= makensis
 
