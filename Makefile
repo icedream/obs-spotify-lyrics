@@ -116,8 +116,12 @@ $(OBS_WIN_SDK)/.stamp:
 		x86_64-w64-mingw32-dlltool -d obs-frontend-api.def -l libobs-frontend-api.dll.a
 	touch $@
 
+plugin/gen_resource_windows_amd64.syso &: plugin/versioninfo.json assets/icon.ico Makefile
+	go tool goversioninfo -64      -file-version "$(PE_VERSION)" -product-version "$(PE_VERSION)" -icon assets/icon.ico -o plugin/gen_resource_windows_amd64.syso plugin/versioninfo.json
+	go tool goversioninfo -64 -arm -file-version "$(PE_VERSION)" -product-version "$(PE_VERSION)" -icon assets/icon.ico -o plugin/gen_resource_windows_arm64.syso plugin/versioninfo.json
+
 .PHONY: build-plugin-windows-amd64
-build-plugin-windows-amd64: $(OBS_WIN_SRC)/.stamp $(OBS_WIN_SDK)/.stamp
+build-plugin-windows-amd64: $(OBS_WIN_SRC)/.stamp $(OBS_WIN_SDK)/.stamp plugin/gen_resource_windows_amd64.syso
 	GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
 		CGO_CFLAGS="-I$(CURDIR)/$(OBS_WIN_SRC)/libobs -I$(CURDIR)/$(OBS_WIN_SRC)/frontend/api" \
 		CGO_LDFLAGS="-L$(CURDIR)/$(OBS_WIN_SDK) -lobs -lobs-frontend-api" \
@@ -169,6 +173,7 @@ clean-plugin-linux-arm64:
 .PHONY: clean-plugin-windows-amd64
 clean-plugin-windows-amd64:
 	rm -f spotify-lyrics-windows-amd64.dll spotify-lyrics-windows-amd64.h
+	rm -f plugin/gen_resource_windows_amd64.syso plugin/gen_resource_windows_arm64.syso
 	rm -rf $(OBS_WIN_SRC) $(OBS_WIN_SDK) obs-win.zip obs-win-tmp
 
 .PHONY: clean-installer-windows-amd64
