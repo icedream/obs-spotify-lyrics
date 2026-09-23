@@ -3,7 +3,7 @@ module github.com/icedream/obs-spotify-lyrics
 go 1.26.2
 
 require (
-	github.com/ProtonMail/go-crypto v1.4.1
+	github.com/ProtonMail/go-crypto v1.5.1
 	github.com/davecgh/go-spew v1.1.1
 	github.com/godbus/dbus/v5 v5.2.2
 	github.com/gorilla/websocket v1.5.3
