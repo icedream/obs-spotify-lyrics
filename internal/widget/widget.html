@@ -216,8 +216,13 @@
   let fadingOut     = false;
 
   // Incoming positions that differ from the local estimate by less than this
-  // are treated as poll jitter and do not re-anchor the playback clock.
-  const reanchorDeadbandMs = 400;
+  // are treated as poll jitter and do not re-anchor the playback clock. A poll
+  // arrives every 3s and Spotify's jitter is tens of milliseconds, so a correct
+  // anchor never moves. Corrections land behind a line boundary, so an
+  // over-eager re-anchor un-sings a line; the deadband has to exceed jitter plus
+  // the widget's own anchor lag. Real drift (seek, stall, pause, device hiccup)
+  // is well above a second and still corrects.
+  const reanchorDeadbandMs = 1200;
 
   // Sync offset in ms; a positive value shows lyrics later.
   let offsetMs = 0;

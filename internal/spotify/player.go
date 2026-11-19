@@ -124,11 +124,12 @@ func computeProgress(state connectStatePlayerState, serverTimestampMs int64, now
 	return clampProgress(posMs+int64(float64(elapsedMs)*playbackSpeedOf(state)), state)
 }
 
-// clampProgress keeps a position inside [0, duration] when the duration is known.
+// clampProgress keeps a position at or above zero, and inside [0, duration]
+// when the duration is known.
 func clampProgress(posMs int64, state connectStatePlayerState) int64 {
 	durMs, _ := strconv.ParseInt(state.Track.Metadata["duration"], 10, 64)
 	if durMs <= 0 {
-		return posMs
+		return max(posMs, 0)
 	}
 	return min(max(posMs, 0), durMs)
 }

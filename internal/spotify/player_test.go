@@ -121,7 +121,20 @@ func TestComputeProgress(t *testing.T) {
 			want:            0,
 		},
 		{
-			name:            "unknown duration is not clamped",
+			// A negative position is never valid, with or without a duration.
+			name:            "negative position clamped to zero without duration",
+			state:           playerState(-500, speedPtr(1.0), 0),
+			serverTimestamp: stateTs,
+			want:            0,
+		},
+		{
+			name:            "stalled device clamps negative position without duration",
+			state:           playerState(-500, speedPtr(0.0), 0),
+			serverTimestamp: stateTs + 16_000,
+			want:            0,
+		},
+		{
+			name:            "unknown duration does not clamp the upper bound",
 			state:           playerState(175_000, speedPtr(1.0), 0),
 			serverTimestamp: stateTs + 10_000,
 			want:            185_000,
