@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -63,11 +64,73 @@ type connectStatePlayerState struct {
 	IsPaused              bool              `json:"is_paused"`
 	PositionAsOfTimestamp string            `json:"position_as_of_timestamp"`
 	Timestamp             string            `json:"timestamp"`
+	// PlaybackSpeed is 0.0 while a device is starting up or stalled, even
+	// though IsPlaying is true. Nil, NaN or a negative value mean normal speed.
+	PlaybackSpeed *float64 `json:"playback_speed"`
 }
 
 type connectStateResp struct {
 	PlayerState       connectStatePlayerState `json:"player_state"`
 	ServerTimestampMs string                  `json:"server_timestamp_ms"`
+}
+
+// playbackSpeedOf returns the effective playback speed of a device. A missing,
+// NaN or negative value is treated as normal speed; 0 means stalled.
+func playbackSpeedOf(state connectStatePlayerState) float64 {
+	if state.PlaybackSpeed == nil {
+		return 1.0
+	}
+	speed := *state.PlaybackSpeed
+	if math.IsNaN(speed) || speed < 0 {
+		return 1.0
+	}
+	return speed
+}
+
+// isAdvancing reports whether the device is actually moving through the track.
+// is_playing stays true while a device starts or stalls, which playback_speed == 0
+// distinguishes.
+func isAdvancing(state connectStatePlayerState) bool {
+	return state.IsPlaying && !state.IsPaused && playbackSpeedOf(state) > 0
+}
+
+// computeProgress extrapolates the reported position to the moment of the
+// response: pos + max(0, serverTimestampMs - stateTimestamp) * speed.
+//
+// The player timestamp is in Spotify's clock domain, so Spotify's own
+// server_timestamp_ms is the reference to extrapolate from; the local clock is
+// only used when that field is absent or not positive. now is passed in to keep
+// this function pure.
+func computeProgress(state connectStatePlayerState, serverTimestampMs int64, now time.Time) int64 {
+	posMs, err := strconv.ParseInt(state.PositionAsOfTimestamp, 10, 64)
+	if err != nil {
+		return 0
+	}
+	if !isAdvancing(state) {
+		return clampProgress(posMs, state)
+	}
+	tsMs, err := strconv.ParseInt(state.Timestamp, 10, 64)
+	if err != nil {
+		return clampProgress(posMs, state)
+	}
+
+	elapsedMs := serverTimestampMs - tsMs
+	if serverTimestampMs <= 0 {
+		elapsedMs = now.UnixMilli() - tsMs
+	}
+	if elapsedMs < 0 {
+		elapsedMs = 0
+	}
+	return clampProgress(posMs+int64(float64(elapsedMs)*playbackSpeedOf(state)), state)
+}
+
+// clampProgress keeps a position inside [0, duration] when the duration is known.
+func clampProgress(posMs int64, state connectStatePlayerState) int64 {
+	durMs, _ := strconv.ParseInt(state.Track.Metadata["duration"], 10, 64)
+	if durMs <= 0 {
+		return posMs
+	}
+	return min(max(posMs, 0), durMs)
 }
 
 // getDealerConnectionID opens a WebSocket to the Spotify dealer, reads until it
@@ -191,19 +254,11 @@ func (c *Client) CurrentlyPlaying(ctx context.Context) (*CurrentlyPlayingRespons
 		DurationMs: durMs,
 	}
 
-	// Compute progress: position at last timestamp + elapsed time if playing.
-	var progressMs int64
-	posMs, posErr := strconv.ParseInt(cs.PlayerState.PositionAsOfTimestamp, 10, 64)
-	tsMs, tsErr := strconv.ParseInt(cs.PlayerState.Timestamp, 10, 64)
-	if posErr == nil && tsErr == nil {
-		progressMs = posMs
-		if cs.PlayerState.IsPlaying && !cs.PlayerState.IsPaused {
-			progressMs += time.Now().UnixMilli() - tsMs
-		}
-	}
+	serverTimestampMs, _ := strconv.ParseInt(cs.ServerTimestampMs, 10, 64)
+	progressMs := computeProgress(cs.PlayerState, serverTimestampMs, time.Now())
 
 	return &CurrentlyPlayingResponse{
-		IsPlaying:            cs.PlayerState.IsPlaying && !cs.PlayerState.IsPaused,
+		IsPlaying:            isAdvancing(cs.PlayerState),
 		ProgressMs:           progressMs,
 		CurrentlyPlayingType: "track",
 		Item:                 track,
