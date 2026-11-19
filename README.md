@@ -78,10 +78,27 @@ Things that can be adjusted include:
 - Font sizes (highlighted & adjacent lines)
 - Various geometry such as row heights and paddings
 - Animation durations
+- Lyric timing (sync offset)
 
 These variables and even more can also be adjusted through custom CSS via the
 "Custom CSS" view, just as you may already be used to using the Browser source
 directly.
+
+### Sync offset
+
+If the highlighted line is consistently ahead of or behind what you hear, set
+*Sync offset* (in the *Timing* group) in milliseconds. A positive value shows
+lyrics later, a negative value shows them earlier. Start with something like
+500 ms and tune from there.
+
+A lead like that usually comes from the audio output path rather than from the
+lyrics data: Bluetooth codecs, USB DACs and digital outputs all add delay, and
+OBS adds more when the same device is monitored or captured. The offset is
+applied in the widget only, so the position reported to other WebSocket clients
+stays untouched.
+
+Custom HTML can set the same value through the `--sync-offset` CSS variable or
+an `?offset=<milliseconds>` URL parameter.
 
 ### Roll your own HTML
 

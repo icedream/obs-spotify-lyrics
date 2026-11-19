@@ -68,6 +68,9 @@
 
       /* How long the fade-out after the last line takes */
       --fadeout-duration: 1.5s;                             /* obs: Fade-out duration | Animation | number:ms */
+
+      /* Shifts lyrics later (positive) or earlier (negative) to match your audio path */
+      --sync-offset: 0ms;                                   /* obs: Sync offset | Timing | number:ms-neg */
     }
     /* End of customisation */
 
@@ -216,6 +219,9 @@
   // are treated as poll jitter and do not re-anchor the playback clock.
   const reanchorDeadbandMs = 400;
 
+  // Sync offset in ms; a positive value shows lyrics later.
+  let offsetMs = 0;
+
   /* DOM references */
 
   const stageEl    = document.getElementById('stage');
@@ -237,8 +243,8 @@
     el.dataset.text = text;
   }
 
-  // Reads a CSS time custom property (--scroll-duration) as milliseconds.
-  // Values not ending in "ms" are treated as seconds.
+  // Reads a CSS time custom property (--scroll-duration, --sync-offset) as
+  // milliseconds. Values not ending in "ms" are treated as seconds.
   function cssTimeMs(prop) {
     const raw = getComputedStyle(document.documentElement).getPropertyValue(prop).trim();
     if (raw === '') return 0;
@@ -246,6 +252,19 @@
     if (Number.isNaN(n)) return 0;
     return raw.endsWith('ms') ? n : n * 1000;
   }
+
+  // Sync offset: the ?offset=<ms> query parameter wins over --sync-offset so a
+  // hand-rolled widget or the standalone server can set it without editing CSS.
+  function readOffsetMs() {
+    const param = new URLSearchParams(location.search).get('offset');
+    if (param !== null) {
+      const fromUrl = Number(param);
+      if (Number.isFinite(fromUrl)) return fromUrl;
+    }
+    return cssTimeMs('--sync-offset');
+  }
+
+  offsetMs = readOffsetMs();
 
   // Enable or disable the CSS transitions used during a scroll animation.
   // cur and next also transition their size/color as they swap roles.
@@ -367,9 +386,9 @@
 
     if (lyrics.length === 0 || scrolling) return;
 
-    const currentMs = isPlaying
+    const currentMs = (isPlaying
       ? positionMs + (performance.now() - receivedAt)
-      : positionMs;
+      : positionMs) - offsetMs;
 
     // Fade out after the last line has finished.
     if (lastLineEndMs > 0 && currentMs > lastLineEndMs) {
@@ -516,6 +535,8 @@
       // cannot override the update we're about to apply.
       document.querySelectorAll('head > style:not([id])').forEach(s => s.remove());
       obsCssEl.textContent = e.detail;
+      // The offset may have changed in the pushed CSS.
+      offsetMs = readOffsetMs();
     }
   });
 </script>

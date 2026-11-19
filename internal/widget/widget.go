@@ -42,6 +42,7 @@ func init() { CSSVars = ParseCSSVars(HTML) }
 // Supported types: "" (text field, default), "color-alpha" (color picker with alpha),
 // "font" (OBS font picker; DefVal is ignored, value expands to multiple CSS sub-vars),
 // "number:ms" (float spinner in milliseconds; DefVal is a CSS time e.g. "0.35s"),
+// "number:ms-neg" (int spinner in milliseconds, may be negative; DefVal is a CSS time e.g. "0ms"),
 // "number:px" (int spinner in pixels, can be negative; DefVal e.g. "2px"),
 // "number:px+" (int spinner in pixels, non-negative; DefVal e.g. "10px"),
 // "number" (float slider 0–1, unitless; DefVal is a plain float e.g. "0.45").

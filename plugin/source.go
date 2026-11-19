@@ -185,7 +185,7 @@ func buildCSSFromSettings(settings *C.obs_data_t) string {
 				}
 			}
 			val = obscolor.ToCSS(raw)
-		case "number:ms":
+		case "number:ms", "number:ms-neg":
 			ms := C.obs_data_get_int(settings, keyCS)
 			val = fmt.Sprintf("%dms", ms)
 		case "number:px", "number:px+":
@@ -406,7 +406,7 @@ func source_get_defaults(settings *C.obs_data_t) {
 			C.free(unsafe.Pointer(faceKeyCS))
 			C.free(unsafe.Pointer(sizeKeyCS))
 			C.free(unsafe.Pointer(flagsKeyCS))
-		case "number:ms":
+		case "number:ms", "number:ms-neg":
 			if ms, ok := parseMsDefault(v.DefVal); ok {
 				C.obs_data_set_default_int(settings, keyCS, C.longlong(ms))
 			}
@@ -513,6 +513,11 @@ func source_get_props(data C.uintptr_t) *C.obs_properties_t {
 			C.obs_properties_add_font(container, keyCS, labelCS)
 		case "number:ms":
 			p := C.obs_properties_add_int(container, keyCS, labelCS, 0, 10000, 50)
+			msCS := C.CString(" ms")
+			C.obs_property_int_set_suffix(p, msCS)
+			C.free(unsafe.Pointer(msCS))
+		case "number:ms-neg":
+			p := C.obs_properties_add_int(container, keyCS, labelCS, -10000, 10000, 50)
 			msCS := C.CString(" ms")
 			C.obs_property_int_set_suffix(p, msCS)
 			C.free(unsafe.Pointer(msCS))
