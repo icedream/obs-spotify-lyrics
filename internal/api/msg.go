@@ -11,8 +11,8 @@ type msg struct {
 	Type       string         `json:"type"` // "playing" or "idle"
 	Track      *spotify.Track `json:"track,omitempty"`
 	Lyrics     []lyricLine    `json:"lyrics,omitempty"`
-	PositionMs int64          `json:"position_ms,omitempty"`
-	IsPlaying  bool           `json:"is_playing,omitempty"`
+	PositionMs int64          `json:"position_ms"`
+	IsPlaying  bool           `json:"is_playing"`
 }
 
 // lyricLine is a single lyric line with its start timestamp in milliseconds.
