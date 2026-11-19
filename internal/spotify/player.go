@@ -160,17 +160,24 @@ func (c *Client) getDealerConnectionID(accessToken string) (string, error) {
 	return "", fmt.Errorf("dealer WebSocket did not provide a connection ID")
 }
 
-// CurrentlyPlaying returns information about the track currently playing on the
-// user's Spotify account. Returns nil with no error when nothing is playing.
-func (c *Client) CurrentlyPlaying(ctx context.Context) (*CurrentlyPlayingResponse, error) {
-	accessToken, err := c.ensureToken()
-	if err != nil {
-		return nil, err
+// connectState asks the connect-state endpoint for the current player state.
+// It reuses the cached dealer connection ID, or dials a fresh one when the
+// cache is empty or expired, or when forceFresh is set. The bool result says
+// whether a new connection ID was dialled for this request.
+func (c *Client) connectState(ctx context.Context, accessToken string, forceFresh bool) (*connectStateResp, bool, error) {
+	connID := ""
+	dialled := false
+	if !forceFresh {
+		connID = c.cachedDealerConnID()
 	}
-
-	connID, err := c.getDealerConnectionID(accessToken)
-	if err != nil {
-		return nil, err
+	if connID == "" {
+		id, err := c.getDealerConnectionID(accessToken)
+		if err != nil {
+			return nil, false, err
+		}
+		c.cacheDealerConnID(id)
+		connID = id
+		dialled = true
 	}
 
 	body := map[string]any{
@@ -187,12 +194,12 @@ func (c *Client) CurrentlyPlaying(ctx context.Context) (*CurrentlyPlayingRespons
 	}
 	bodyBytes, err := json.Marshal(body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal connect-state request: %w", err)
+		return nil, dialled, fmt.Errorf("failed to marshal connect-state request: %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPut, connectStateBase+c.deviceID, bytes.NewReader(bodyBytes))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create connect-state request: %w", err)
+		return nil, dialled, fmt.Errorf("failed to create connect-state request: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 	req.Header.Set("Content-Type", "application/json")
@@ -200,23 +207,55 @@ func (c *Client) CurrentlyPlaying(ctx context.Context) (*CurrentlyPlayingRespons
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("connect-state request failed: %w", err)
+		return nil, dialled, fmt.Errorf("connect-state request failed: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
+	if resp.StatusCode != http.StatusOK {
+		// Spotify did not accept the connection ID, dial a new one next time.
+		c.invalidateDealerConnID()
+	}
+
 	if resp.StatusCode == http.StatusUnauthorized {
-		return nil, &Error{Message: "unauthorized: sp_dc cookie may be expired", StatusCode: resp.StatusCode}
+		return nil, dialled, &Error{Message: "unauthorized: sp_dc cookie may be expired", StatusCode: resp.StatusCode}
 	}
 	if resp.StatusCode >= 400 {
-		return nil, newError(resp)
+		return nil, dialled, newError(resp)
 	}
 
 	var cs connectStateResp
 	if err := json.NewDecoder(resp.Body).Decode(&cs); err != nil {
-		return nil, fmt.Errorf("failed to decode connect-state response: %w", err)
+		return nil, dialled, fmt.Errorf("failed to decode connect-state response: %w", err)
+	}
+
+	return &cs, dialled, nil
+}
+
+// CurrentlyPlaying returns information about the track currently playing on the
+// user's Spotify account. Returns nil with no error when nothing is playing.
+func (c *Client) CurrentlyPlaying(ctx context.Context) (*CurrentlyPlayingResponse, error) {
+	accessToken, err := c.ensureToken()
+	if err != nil {
+		return nil, err
+	}
+
+	cs, dialled, err := c.connectState(ctx, accessToken, false)
+	if err != nil {
+		return nil, err
 	}
 
 	uri := cs.PlayerState.Track.URI
+	if !strings.HasPrefix(uri, "spotify:track:") && !dialled {
+		// A cached connection ID that went stale can make the dealer report an
+		// empty player state, so retry once with an ID that was just dialled
+		// before concluding that nothing is playing.
+		cs, _, err = c.connectState(ctx, accessToken, true)
+		if err != nil {
+			return nil, err
+		}
+		uri = cs.PlayerState.Track.URI
+	}
+
 	if !strings.HasPrefix(uri, "spotify:track:") {
 		// Nothing playing or non-track content.
 		return nil, nil

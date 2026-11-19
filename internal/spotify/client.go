@@ -34,6 +34,12 @@ const (
 	// tokenExpiryBuffer is subtracted from the token expiry time to refresh
 	// slightly early and avoid using a token that is about to expire.
 	tokenExpiryBuffer = 5 * time.Second
+
+	// dealerConnIDTTL is how long a dialled dealer connection ID is reused.
+	// A connection ID was measured to stay usable for more than three minutes
+	// after the WebSocket it came from was closed, so 90s is deliberately
+	// conservative.
+	dealerConnIDTTL = 90 * time.Second
 )
 
 // Client handles authentication and communication with Spotify's internal APIs.
@@ -53,6 +59,15 @@ type Client struct {
 
 	// token holds the authenticated token.
 	token *tokenResponse
+
+	// dealerConnID and dealerConnIDExpiry cache the dealer connection ID used
+	// for connect-state requests, so a dealer WebSocket is not dialled on every
+	// poll. Guarded by mu.
+	dealerConnID       string
+	dealerConnIDExpiry time.Time
+
+	// now reports the current time. It is replaced in tests.
+	now func() time.Time
 
 	// mu is this client's general lock.
 	mu sync.Mutex
@@ -78,6 +93,7 @@ func NewClient(spDC, deviceID string) *Client {
 		deviceID:    deviceID,
 		httpClient:  &http.Client{Timeout: 30 * time.Second},
 		tokenClient: &http.Client{Timeout: 30 * time.Second, CheckRedirect: noRedirect},
+		now:         time.Now,
 	}
 }
 
@@ -252,6 +268,9 @@ func (c *Client) refreshToken() error {
 	}
 
 	c.token = &token
+	// The cached dealer connection ID belongs to the previous access token.
+	c.dealerConnID = ""
+	c.dealerConnIDExpiry = time.Time{}
 	return nil
 }
 
@@ -269,4 +288,35 @@ func (c *Client) ensureToken() (string, error) {
 	}
 
 	return c.token.AccessToken, nil
+}
+
+// cachedDealerConnID returns the cached dealer connection ID, or an empty
+// string when there is none or it has expired.
+func (c *Client) cachedDealerConnID() string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.dealerConnID == "" || !c.now().Before(c.dealerConnIDExpiry) {
+		return ""
+	}
+	return c.dealerConnID
+}
+
+// cacheDealerConnID stores a freshly dialled dealer connection ID for
+// dealerConnIDTTL.
+func (c *Client) cacheDealerConnID(id string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.dealerConnID = id
+	c.dealerConnIDExpiry = c.now().Add(dealerConnIDTTL)
+}
+
+// invalidateDealerConnID drops the cached dealer connection ID.
+func (c *Client) invalidateDealerConnID() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.dealerConnID = ""
+	c.dealerConnIDExpiry = time.Time{}
 }
