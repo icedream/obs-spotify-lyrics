@@ -187,7 +187,10 @@ func (p *poller) poll(ctx context.Context) time.Duration {
 		// track's lines right away; lyrics are fetched in the background.
 		p.broadcastPlaying()
 		go p.fetchAndBroadcastLyrics(ctx, trackID)
-	} else if playingChanged || seeked {
+	} else if playingChanged || seeked || state.IsPlaying {
+		// While playing, broadcast on every poll so the widget can correct any
+		// accumulated position drift instead of extrapolating from one anchor for
+		// the whole track. Track change, pause/resume and seek stay immediate.
 		p.broadcastPlaying()
 	}
 
