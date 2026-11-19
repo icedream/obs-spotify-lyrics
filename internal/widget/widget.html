@@ -207,9 +207,14 @@
   let receivedAt    = 0;
   let activeIndex   = -1;
   let scrolling     = false;
+  let scrollToken   = 0;   // invalidates handlers of a superseded scroll animation
   let trackId       = '';
   let lastLineEndMs = 0;   // end_ms of the last lyric line; 0 = unknown
   let fadingOut     = false;
+
+  // Incoming positions that differ from the local estimate by less than this
+  // are treated as poll jitter and do not re-anchor the playback clock.
+  const reanchorDeadbandMs = 400;
 
   /* DOM references */
 
@@ -232,6 +237,16 @@
     el.dataset.text = text;
   }
 
+  // Reads a CSS time custom property (--scroll-duration) as milliseconds.
+  // Values not ending in "ms" are treated as seconds.
+  function cssTimeMs(prop) {
+    const raw = getComputedStyle(document.documentElement).getPropertyValue(prop).trim();
+    if (raw === '') return 0;
+    const n = parseFloat(raw);
+    if (Number.isNaN(n)) return 0;
+    return raw.endsWith('ms') ? n : n * 1000;
+  }
+
   // Enable or disable the CSS transitions used during a scroll animation.
   // cur and next also transition their size/color as they swap roles.
   // stageEl is included so that snapTo() opacity changes are always instant.
@@ -251,8 +266,7 @@
     // For mid-song lines the shimmer starts ~scroll-duration ms late (snapTo is called
     // only after the outgoing scroll animation completes), so subtract it to ensure the
     // sweep finishes just as the next scroll begins rather than being cut mid-way.
-    const cssVal  = getComputedStyle(document.documentElement).getPropertyValue('--scroll-duration').trim();
-    const scrollMs = cssVal.endsWith('ms') ? parseFloat(cssVal) : parseFloat(cssVal) * 1000;
+    const scrollMs = cssTimeMs('--scroll-duration');
     if (index < lyrics.length - 1) {
       return Math.max(lyrics[index + 1].start_ms - lyrics[index].start_ms - scrollMs, 500);
     }
@@ -294,12 +308,20 @@
     scrolling   = false;
   }
 
+  // Clears the display and drops any in-flight scroll animation, so a pending
+  // transitionend handler cannot snap back to a stale index afterwards.
+  function clearDisplay() {
+    scrollToken++;
+    snapTo(-1);
+  }
+
   // Scroll forward by one line with animation.
   // #lines translates up by one row. The departing line fades out, the
   // incoming line fades in, and cur/next cross-fade their size and colour.
   function scrollForward() {
     if (scrolling) return;
     scrolling = true;
+    const token = ++scrollToken;
 
     const newIndex = activeIndex + 1;
 
@@ -320,8 +342,7 @@
 
     // If scroll duration is 0ms the browser won't fire transitionend, so call
     // snapTo() directly in that case.
-    const cssScrollVal = getComputedStyle(document.documentElement).getPropertyValue('--scroll-duration').trim();
-    const scrollMs = cssScrollVal.endsWith('ms') ? parseFloat(cssScrollVal) : parseFloat(cssScrollVal) * 1000;
+    const scrollMs = cssTimeMs('--scroll-duration');
     if (scrollMs <= 0) {
       snapTo(newIndex);
       requestAnimationFrame(() => requestAnimationFrame(() => setTransitions(true)));
@@ -331,6 +352,8 @@
     linesEl.addEventListener('transitionend', function onDone(e) {
       if (e.target !== linesEl || e.propertyName !== 'transform') return;
       linesEl.removeEventListener('transitionend', onDone);
+      // A snap or a newer scroll superseded this animation; its index is stale.
+      if (token !== scrollToken) return;
 
       snapTo(newIndex);
       requestAnimationFrame(() => requestAnimationFrame(() => setTransitions(true)));
@@ -374,6 +397,9 @@
       scrollForward();
     } else {
       // Seek, jump, or initial display: snap directly without animation.
+      // Invalidating the token stops an interrupted scroll's transitionend from
+      // snapping to a stale index later.
+      scrollToken++;
       // If the stage was hidden (intro period), fade it in rather than snapping it visible.
       const fadeIn       = stageEl.style.opacity === '0' && newIndex >= 0;
       const snapIndex    = newIndex;
@@ -407,25 +433,42 @@
       const newTrackId = msg.track?.id ?? '';
 
       if (msg.type === 'playing') {
-        const trackChanged  = newTrackId !== trackId;
-        const trackDurMs    = msg.track?.duration_ms || 0;
-        trackId    = newTrackId;
-        lyrics     = msg.lyrics || [];
-        positionMs = msg.position_ms;
-        isPlaying  = msg.is_playing;
-        receivedAt = performance.now();
+        const trackChanged   = newTrackId !== trackId;
+        const trackDurMs     = msg.track?.duration_ms || 0;
+        const newLyrics      = msg.lyrics || [];
+        const newPosMs       = msg.position_ms ?? 0;
+        const newIsPlaying   = msg.is_playing ?? false;
 
-        if (trackChanged || lyrics.length === 0) {
-          // Clear immediately; tick() will render the right line once lyrics arrive.
-          snapTo(-1);
-          requestAnimationFrame(() => requestAnimationFrame(() => setTransitions(true)));
-        } else {
-          // Same track (seek or pause/resume): let tick() recalculate position.
-          // Clear any stale fade-out so the fadeIn path in tick() can restore the stage.
-          activeIndex = -1;
-          scrolling   = false;
-          fadingOut   = false;
+        // Where the current anchor believes playback is at this moment.
+        const localMs = isPlaying
+          ? positionMs + (performance.now() - receivedAt)
+          : positionMs;
+
+        // Re-anchor when the anchor is no longer valid (new track, playback
+        // started/stopped, no lyrics rendered yet) or when the server and the
+        // local estimate disagree by more than poll jitter. Applying every
+        // small correction would flip the line index back and forth across a
+        // line boundary.
+        const reanchor = trackChanged
+          || newIsPlaying !== isPlaying
+          || newLyrics.length === 0
+          || Math.abs(newPosMs - localMs) >= reanchorDeadbandMs;
+
+        trackId = newTrackId;
+        lyrics  = newLyrics;
+        if (reanchor) {
+          positionMs = newPosMs;
+          receivedAt = performance.now();
         }
+        isPlaying = newIsPlaying;
+
+        if (trackChanged || newLyrics.length === 0) {
+          // Clear immediately; tick() will render the right line once lyrics arrive.
+          clearDisplay();
+          requestAnimationFrame(() => requestAnimationFrame(() => setTransitions(true)));
+        }
+        // Same-track updates leave activeIndex, scrolling and fadingOut alone;
+        // tick() animates a one-line change and snaps a larger one.
 
         // Always recalculate the fade-out point whenever we have lyrics,
         // including on first load and track changes.
@@ -441,14 +484,14 @@
         lyrics        = [];
         lastLineEndMs = 0;
         isPlaying     = false;
-        snapTo(-1);
+        clearDisplay();
       }
     };
 
     ws.onclose = () => {
       lyrics    = [];
       isPlaying = false;
-      snapTo(-1);
+      clearDisplay();
       setTimeout(connect, reconnectDelay);
       reconnectDelay = Math.min(reconnectDelay * 2, 30_000);
     };
