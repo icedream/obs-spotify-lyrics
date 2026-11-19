@@ -1,7 +1,6 @@
 package spotify
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -20,27 +19,36 @@ type serverTimeResponse struct {
 
 // LyricsLine represents a single line of lyrics with timing information.
 type LyricsLine struct {
-	StartTimeMs  string `json:"startTimeMs"`
-	Words        string `json:"words"`
-	SyllabicLine bool   `json:"syllabicLine"`
-	EndTimeMs    string `json:"endTimeMs,omitempty"`
+	StartTimeMs string `json:"startTimeMs"`
+	Words       string `json:"words"`
+	// EndTimeMs is "0" on every line the API returns today, so callers derive
+	// a line's end time from the next line's start time.
+	EndTimeMs           string     `json:"endTimeMs,omitempty"`
+	Syllables           []Syllable `json:"syllables"`
+	TransliteratedWords string     `json:"transliteratedWords"`
+}
+
+// Syllable is one syllable of a lyric line, timings given as strings like the
+// line timings. Spotify returns an empty Syllables list on every track sampled
+// so far, but the field belongs to the response shape.
+type Syllable struct {
+	Text        string `json:"text"`
+	StartTimeMs string `json:"startTimeMs"`
+	DurationMs  string `json:"durationMs"`
 }
 
 // Lyrics contains the lyrics data returned by Spotify.
 type Lyrics struct {
-	SyncType         string       `json:"syncType"`
-	Lines            []LyricsLine `json:"lines"`
-	Provider         string       `json:"provider"`
-	ProviderLyricsID string       `json:"providerLyricsId"`
-	Language         string       `json:"language"`
+	SyncType string       `json:"syncType"`
+	Lines    []LyricsLine `json:"lines"`
+	Provider string       `json:"provider"`
+	Language string       `json:"language"`
 }
 
 // LyricsResponse is the top-level response from the Spotify lyrics API.
 type LyricsResponse struct {
 	// Lyrics may be nil if Spotify returns a response without lyrics.
-	Lyrics          *Lyrics         `json:"lyrics"`
-	Colors          json.RawMessage `json:"colors"`
-	HasVocalRemoval bool            `json:"hasVocalRemoval"`
+	Lyrics *Lyrics `json:"lyrics"`
 }
 
 // Error represents an error returned by the Spotify API, with an associated HTTP status code.

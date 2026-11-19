@@ -13,6 +13,10 @@ const lyricsURL = "https://spclient.wg.spotify.com/color-lyrics/v2/track/"
 
 // Lyrics retrieves the lyrics for a Spotify track by its ID.
 // It returns an error of type *Error for API-level failures (e.g. 404, 429).
+//
+// The endpoint needs both the User-Agent and the App-platform: WebPlayer
+// header: without either it answers 403, with only a User-Agent it answers 400.
+// Which lyrics come back depends on the market query parameter.
 func (c *Client) Lyrics(ctx context.Context, trackID string) (*LyricsResponse, error) {
 	token, err := c.ensureToken()
 	if err != nil {
