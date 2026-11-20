@@ -11,7 +11,12 @@
 #   make clean-plugin-windows-amd64      clean only Windows plugin outputs (incl. OBS SDK)
 
 VERSION     ?= $(shell git describe --always --tags 2>/dev/null || echo dev)
-PE_VERSION  ?= $(shell (git describe --always --tags --long 2>/dev/null || echo 0.0.0-0) | sed 's/^v//; s/-g.*//' | awk -F'-' '{printf "%s.%s", $$1, $$2}')
+# Four-part numeric version for PE resources: v0.3.3-9-g<sha> becomes 0.3.3.9.
+# Anything that is not a plain semver tag (shallow clone, rc tag) yields
+# 0.0.0.0 so that goversioninfo and makensis still get a valid version.
+PE_VERSION  ?= $(shell (git describe --always --tags --long 2>/dev/null || echo 0.0.0-0) | \
+	sed 's/^v//; s/-g.*$$//' | \
+	awk -F'-' '{ if ($$1 ~ /^[0-9]+\.[0-9]+\.[0-9]+$$/) printf "%s.%d", $$1, $$2; else printf "0.0.0.0" }')
 OBS_VERSION ?= 32.2.2
 GITHUB_REPO ?= icedream/obs-spotify-lyrics
 MAKENSIS    ?= makensis
@@ -47,7 +52,12 @@ build-binary-linux-arm64:
 		-o lyrics-linux-arm64 ./cmd/lyrics/
 	$(if $(UPX),$(UPX) --lzma lyrics-linux-arm64)
 
-cmd/lyrics/gen_resource_windows_amd64.syso cmd/lyrics/gen_resource_windows_arm64.syso &: cmd/lyrics/versioninfo.json assets/icon.ico Makefile
+# FORCE: the version in these resources comes from git describe, which no file
+# prerequisite can express.
+.PHONY: FORCE
+FORCE:
+
+cmd/lyrics/gen_resource_windows_amd64.syso cmd/lyrics/gen_resource_windows_arm64.syso &: cmd/lyrics/versioninfo.json assets/icon.ico Makefile FORCE
 	go tool goversioninfo -64      -file-version "$(PE_VERSION)" -product-version "$(PE_VERSION)" -icon assets/icon.ico -o cmd/lyrics/gen_resource_windows_amd64.syso cmd/lyrics/versioninfo.json
 	go tool goversioninfo -64 -arm -file-version "$(PE_VERSION)" -product-version "$(PE_VERSION)" -icon assets/icon.ico -o cmd/lyrics/gen_resource_windows_arm64.syso cmd/lyrics/versioninfo.json
 
@@ -116,7 +126,7 @@ $(OBS_WIN_SDK)/.stamp:
 		x86_64-w64-mingw32-dlltool -d obs-frontend-api.def -l libobs-frontend-api.dll.a
 	touch $@
 
-plugin/gen_resource_windows_amd64.syso &: plugin/versioninfo.json assets/icon.ico Makefile
+plugin/gen_resource_windows_amd64.syso &: plugin/versioninfo.json assets/icon.ico Makefile FORCE
 	go tool goversioninfo -64 -file-version "$(PE_VERSION)" -product-version "$(PE_VERSION)" -icon assets/icon.ico -o plugin/gen_resource_windows_amd64.syso plugin/versioninfo.json
 
 .PHONY: build-plugin-windows-amd64
