@@ -60,6 +60,19 @@ first run:
 make build-plugin-windows-amd64  # outputs Windows 64-bit spotify-lyrics-windows-amd64.dll
 ```
 
+## Windows version information
+
+The server binaries, the plugin DLL and the installer embed a PE version
+resource, so their properties in Explorer show the product name, the company
+and the file version. `goversioninfo` generates the resources for the Go builds
+from `cmd/lyrics/versioninfo.json` and `plugin/versioninfo.json`, and the
+installer sets the same values with `VIProductVersion`.
+
+All of them take the four-part version from `PE_VERSION`, derived from
+`git describe`: tag `v0.3.3` plus 9 commits gives `0.3.3.9`. A checkout without
+a usable semver tag, for example a shallow clone, falls back to `0.0.0.0`. To
+set it explicitly, pass `make PE_VERSION=1.2.3.0 ...`.
+
 ## Build everything
 
 ```sh
