@@ -13,10 +13,11 @@
 		"FileDescription":  "Spotify Lyrics Server for OBS",
 		"FileVersion":      "0.0.0.0",
 		"InternalName":     "lyrics",
-		"LegalCopyright":   "Copyright 2026 Carl Kittelberger",
+		"LegalCopyright":   "Copyright © 2026 Carl Kittelberger (Icedream)",
 		"OriginalFilename": "lyrics.exe",
 		"ProductName":      "Spotify Lyrics for OBS",
-		"ProductVersion":   "0.0.0.0"
+		"ProductVersion":   "0.0.0.0",
+		"Comments":         "https://github.com/icedream/obs-spotify-lyrics"
 	},
 	"VarFileInfo": {
 		"Translation": {
