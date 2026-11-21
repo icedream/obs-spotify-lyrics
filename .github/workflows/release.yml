@@ -313,11 +313,14 @@ jobs:
           git fetch -q --depth=1 origin "refs/tags/${GITHUB_REF_NAME}:refs/tags/${GITHUB_REF_NAME}"
           prev=$(gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
             --jq '[.[] | select(.tag_name != "'"$GITHUB_REF_NAME"'" and .draft == false)] | first.tag_name')
+          # cat -s keeps the spacing single-blank once the notes are joined to
+          # the generated lines below.
+          notes=$(git tag -l --format='%(contents)' "${GITHUB_REF_NAME}" | tail -n +2 \
+            | sed '/^-----BEGIN PGP SIGNATURE-----/,/^-----END PGP SIGNATURE-----$/d' \
+            | sed '/./,$!d' | cat -s)
           {
-            git tag -l --format='%(contents)' "${GITHUB_REF_NAME}" | tail -n +2 \
-              | sed '/^-----BEGIN PGP SIGNATURE-----/,/^-----END PGP SIGNATURE-----$/d' \
-              | sed '/./,$!d'
-            printf '\nBuilt against the OBS %s SDK. Requires OBS %s or newer.\n\n' \
+            printf '%s\n\n' "$notes"
+            printf 'Built against the OBS %s SDK. Requires OBS %s or newer.\n\n' \
               "${{ steps.obs.outputs.obs_version }}" "${{ steps.obs.outputs.obs_min }}"
             if [ -n "$prev" ] && [ "$prev" != "null" ]; then
               printf '**Full Changelog**: https://github.com/%s/compare/%s...%s\n\n' \
