@@ -7,6 +7,9 @@ on:
 
 env:
   OBS_VERSION: "33.0.2"
+  # Newest OBS release. A branch pinned below it also builds its plugin against
+  # this version, to prove the shipped artifact still loads there.
+  OBS_NEWEST: "33.0.2"
 
 jobs:
   test:
@@ -28,6 +31,8 @@ jobs:
         with:
           go-version-file: 'go.mod'
       - run: go build -ldflags "-X main.version=$(git describe --always --tags)" ./cmd/lyrics/
+      - name: Verify the OBS version is the same everywhere
+        run: make verify-obs-version
   build-plugin:
     runs-on: ubuntu-latest
     steps:
@@ -40,12 +45,7 @@ jobs:
       - name: Install libobs-dev
         run: sudo apt-get install -y libobs-dev
       - name: Build OBS plugin
-        run: |
-          CGO_CFLAGS="-I/usr/include/obs" CGO_LDFLAGS="-lobs" \
-            go build -buildmode=c-shared \
-            -ldflags "-X main.pluginVersion=$(git describe --always --tags)" \
-            -o spotify-lyrics.so \
-            ./plugin/
+        run: make build-plugin-linux-amd64
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -122,6 +122,11 @@ jobs:
           name: plugin-windows-amd64
           path: spotify-lyrics-windows-amd64.dll
           retention-days: 1
+      # Upload first: this leg replaces the same DLL path with a build against a
+      # newer SDK, and the artifact above is the one that ships.
+      - name: Build plugin against the newest OBS SDK
+        if: env.OBS_NEWEST != env.OBS_VERSION
+        run: make build-plugin-windows-amd64 OBS_VERSION=${{ env.OBS_NEWEST }}
 
   sign-windows-binaries:
     needs: [build-binary, build-plugin-windows]

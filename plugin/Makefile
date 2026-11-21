@@ -3,6 +3,11 @@ INSTALL_DIR := $(HOME)/.config/obs-studio/plugins/spotify-lyrics/bin/64bit
 
 VERSION ?= $(shell git -C .. describe --always --tags 2>/dev/null || echo dev)
 
+# Standalone builds get no OBS floor; the root Makefile passes both when it
+# drives this one.
+OBS_VERSION ?= unknown
+OBS_MIN_VERSION ?= 0.0.0
+
 GITHUB_REPO ?= icedream/obs-spotify-lyrics
 
 CGO_CFLAGS  := -I/usr/include/obs
@@ -11,11 +16,11 @@ CGO_LDFLAGS := -lobs
 .PHONY: all
 all: $(PLUGIN_SO)
 
-$(PLUGIN_SO):
+$(PLUGIN_SO): $(wildcard *.go *.c *.h) Makefile ../go.mod ../go.sum $(wildcard ../internal/*/*.go)
 	CGO_CFLAGS="$(CGO_CFLAGS)" CGO_LDFLAGS="$(CGO_LDFLAGS)" \
 		go build -buildmode=c-shared \
 		-trimpath \
-		-ldflags="-s -w -X main.pluginVersion=$(VERSION) -X main.githubReleasesURL=https://api.github.com/repos/$(GITHUB_REPO)/releases/latest" \
+		-ldflags="-s -w -X main.pluginVersion=$(VERSION) -X main.obsSDKVersion=$(OBS_VERSION) -X main.obsMinVersion=$(OBS_MIN_VERSION) -X main.githubReleasesURL=https://api.github.com/repos/$(GITHUB_REPO)/releases" \
 		-o $@ .
 
 .PHONY: install

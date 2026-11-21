@@ -6,6 +6,11 @@ on:
 
 env:
   OBS_VERSION: "33.0.2"
+  # The OBS 33 line is published but not auto-offered, because plugin installs
+  # that still ask releases/latest cannot tell an OBS version apart and would be
+  # handed a build their OBS refuses to load. Flip this to false once enough
+  # installs are version-aware (0.3.4 and newer).
+  PRE_RELEASE: "true"
 
 jobs:
   build-binary:
@@ -61,6 +66,8 @@ jobs:
           go-version-file: go.mod
       - name: Install MinGW cross-compiler and gendef
         run: sudo apt-get install -y mingw-w64 mingw-w64-tools
+      - name: Verify the OBS version is the same everywhere
+        run: make verify-obs-version
       - name: Cache OBS Windows SDK
         uses: actions/cache@v6
         with:
@@ -275,6 +282,28 @@ jobs:
           rm -rf staging
 
           cp dist/obs-spotify-lyrics-*-setup.exe pkg/
+      - name: Read OBS version metadata from the Makefile
+        id: obs
+        run: |
+          vars=$(make -s --eval='print-obs-vars:; @echo "$(OBS_VERSION) $(OBS_MIN_VERSION)"' -f Makefile print-obs-vars)
+          echo "obs_version=${vars%% *}" >> "$GITHUB_OUTPUT"
+          echo "obs_min=${vars#* }" >> "$GITHUB_OUTPUT"
+      # The marker in the release body is what a version-aware updater reads;
+      # compat.json is the same values as a signed, machine-readable asset.
+      - name: Generate OBS compatibility metadata
+        run: |
+          printf '{\n  "plugin": "%s",\n  "obs_sdk": "%s",\n  "obs_min": "%s"\n}\n' \
+            "${GITHUB_REF_NAME}" "${{ steps.obs.outputs.obs_version }}" "${{ steps.obs.outputs.obs_min }}" \
+            > pkg/compat.json
+          cat pkg/compat.json
+      - name: Generate release body
+        run: |
+          {
+            printf 'Built against the OBS %s SDK. Requires OBS %s or newer.\n\n' \
+              "${{ steps.obs.outputs.obs_version }}" "${{ steps.obs.outputs.obs_min }}"
+            printf '<!-- obs-compat {"obs_sdk":"%s","obs_min":"%s"} -->\n' \
+              "${{ steps.obs.outputs.obs_version }}" "${{ steps.obs.outputs.obs_min }}"
+          } > obs-compat-body.md
       - name: Generate SHA256SUMS
         run: cd pkg && sha256sum * > SHA256SUMS
       - name: Install cosign
@@ -300,4 +329,6 @@ jobs:
       - uses: softprops/action-gh-release@v3
         with:
           files: pkg/*
+          body_path: obs-compat-body.md
+          prerelease: ${{ env.PRE_RELEASE }}
 
