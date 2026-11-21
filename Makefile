@@ -17,7 +17,7 @@ VERSION     ?= $(shell git describe --always --tags 2>/dev/null || echo dev)
 PE_VERSION  ?= $(shell (git describe --always --tags --long 2>/dev/null || echo 0.0.0-0) | \
 	sed 's/^v//; s/-g.*$$//' | \
 	awk -F'-' '{ if ($$1 ~ /^[0-9]+\.[0-9]+\.[0-9]+$$/) printf "%s.%d", $$1, $$2; else printf "0.0.0.0" }')
-OBS_VERSION ?= 32.2.2
+OBS_VERSION ?= 33.0.2
 GITHUB_REPO ?= icedream/obs-spotify-lyrics
 MAKENSIS    ?= makensis
 
