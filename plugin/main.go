@@ -68,10 +68,12 @@ void blog_string(int log_level, const char *string);
 import "C"
 
 import (
+	"fmt"
 	"runtime"
 	"unsafe"
 
 	"github.com/icedream/obs-spotify-lyrics/internal/logger"
+	"github.com/icedream/obs-spotify-lyrics/internal/update"
 )
 
 var obsModulePointer *C.obs_module_t
@@ -102,6 +104,20 @@ var (
 // pluginVersion is set at build time via -ldflags.
 var pluginVersion = "dev"
 
+// obsSDKVersion is the OBS release the build SDK was taken from, and
+// obsMinVersion the oldest OBS this build is supported on. Both come from the
+// Makefile: OBS 32.0.2 and newer refuse to load a plugin whose obs_module_ver()
+// is above the host, so the SDK pin is also the compatibility statement.
+var (
+	obsSDKVersion = "unknown"
+	obsMinVersion = "0.0.0"
+)
+
+// hostOBSVersion returns the running OBS version, for example "32.0.2".
+func hostOBSVersion() string {
+	return update.OBSVersion(uint32(C.obs_get_version()))
+}
+
 // OBS log levels as Go ints, initialised from C constants to avoid hardcoding.
 var (
 	logLevelDebug = int(C.LOG_DEBUG)
@@ -113,7 +129,16 @@ var (
 //export obs_module_load
 func obs_module_load() C.bool {
 	logger.Set(&obsLogger{})
-	logger.Infof("version: %s, go: %s", pluginVersion, runtime.Version())
+
+	hostOBS := hostOBSVersion()
+	if update.CompareVersions(hostOBS, obsMinVersion) < 0 {
+		blog(logLevelError, fmt.Sprintf(
+			"Spotify Lyrics %s needs OBS %s or newer; OBS %s is running, so the plugin is not loaded.",
+			pluginVersion, obsMinVersion, hostOBS))
+		return false
+	}
+	logger.Infof("version: %s, go: %s, OBS >= %s (SDK %s), running OBS %s",
+		pluginVersion, runtime.Version(), obsMinVersion, obsSDKVersion, hostOBS)
 
 	C.obs_register_source_s(&C.struct_obs_source_info{
 		id:                  sourceIDStr,

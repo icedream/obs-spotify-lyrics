@@ -21,6 +21,7 @@ import (
 
 	"github.com/icedream/obs-spotify-lyrics/distribution"
 	"github.com/icedream/obs-spotify-lyrics/internal/progressdlg"
+	"github.com/icedream/obs-spotify-lyrics/internal/update"
 )
 
 // errDownloadCancelled is returned by progressReader when the user cancels.
@@ -55,7 +56,7 @@ var updateHTTPClient = &http.Client{Timeout: 15 * time.Second}
 // openUpdate on Windows: prompt user, then download and launch the installer.
 // If the installer is verified and launched, OBS will quit automatically once
 // the installer confirms it is running (after UAC elevation).
-func openUpdate(info *releaseInfo) {
+func openUpdate(info *update.Release) {
 	msg := fmt.Sprintf(
 		"Version %s is available (you have %s).\n\n"+
 			"The installer will download automatically. OBS will close and relaunch "+

@@ -1,67 +1,30 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
-	"net/http"
-	"strings"
-	"time"
-
-	"golang.org/x/mod/semver"
+	"github.com/icedream/obs-spotify-lyrics/internal/logger"
+	"github.com/icedream/obs-spotify-lyrics/internal/update"
 )
 
-// githubReleasesURL is the GitHub API endpoint for the latest release.
-// Set at build time via -X main.githubReleasesURL=... for custom forks/mirrors.
-var githubReleasesURL = "https://api.github.com/repos/icedream/obs-spotify-lyrics/releases/latest"
+// githubReleasesURL is the GitHub API endpoint for releases, set at build time
+// via -X main.githubReleasesURL=... for custom forks/mirrors.
+//
+// It is the list endpoint rather than releases/latest because only the list
+// carries every release's body, and the body is where a release advertises the
+// OBS versions it can load.
+var githubReleasesURL = "https://api.github.com/repos/icedream/obs-spotify-lyrics/releases"
 
-type releaseInfo struct {
-	TagName string `json:"tag_name"`
-	HTMLURL string `json:"html_url"`
-	Assets  []struct {
-		Name               string `json:"name"`
-		BrowserDownloadURL string `json:"browser_download_url"`
-	} `json:"assets"`
-}
-
-// checkForUpdates fetches the latest release from GitHub and returns info if a
-// newer version is available. Returns nil, nil if already on the latest version.
-func checkForUpdates() (*releaseInfo, error) {
-	client := &http.Client{Timeout: 10 * time.Second}
-	req, err := http.NewRequest("GET", githubReleasesURL, nil)
+// checkForUpdates lists the releases and picks the newest one that is both newer
+// than this build and loadable on the running OBS. A decision with no Update and
+// no TooNew means nothing to offer.
+func checkForUpdates() (*update.Decision, error) {
+	releases, err := update.List(githubReleasesURL, "obs-spotify-lyrics/"+pluginVersion)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", "obs-spotify-lyrics/"+pluginVersion)
-	req.Header.Set("Accept", "application/vnd.github+json")
 
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
+	decision := update.Choose(releases, pluginVersion, hostOBSVersion())
+	for _, tag := range decision.Malformed {
+		logger.Warnf("release %s has an unreadable obs-compat marker, skipping it", tag)
 	}
-	defer resp.Body.Close() //nolint:errcheck
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("GitHub API returned HTTP %d", resp.StatusCode)
-	}
-
-	var info releaseInfo
-	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
-		return nil, err
-	}
-
-	// Never prompt dev/dirty builds to update.
-	current := pluginVersion
-	if !strings.HasPrefix(current, "v") {
-		current = "v" + current
-	}
-	latest := info.TagName
-	if !strings.HasPrefix(latest, "v") {
-		latest = "v" + latest
-	}
-	// Only suggest update if latest is strictly newer than current.
-	// This prevents downgrade prompts when a release is yanked and the
-	// previous release becomes "latest" again.
-	if !semver.IsValid(current) || semver.Compare(latest, current) <= 0 {
-		return nil, nil
-	}
-	return &info, nil
+	return &decision, nil
 }

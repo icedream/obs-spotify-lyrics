@@ -405,19 +405,24 @@ func check_update_cb(props *C.obs_properties_t, prop *C.obs_property_t, data uns
 	}
 	go func() {
 		defer atomic.StoreInt32(&checkUpdateInProgress, 0)
-		info, err := checkForUpdates()
+		d, err := checkForUpdates()
 		if err != nil {
 			logger.Warnf("update check failed: %v", err)
 			notifyUpdateCheckError(err)
 			return
 		}
-		if info == nil {
+		switch {
+		case d.Update != nil:
+			logger.Infof("update available: %s", d.Update.TagName)
+			openUpdate(d.Update)
+		case d.TooNew != nil:
+			logger.Infof("newest release %s needs OBS %s, this OBS is %s: not offered",
+				d.TooNew.TagName, d.NeedsOBS, hostOBSVersion())
+			notifyNeedsNewerOBS(d.TooNew.TagName, d.NeedsOBS)
+		default:
 			logger.Info("already on the latest version")
 			notifyAlreadyUpToDate()
-			return
 		}
-		logger.Infof("update available: %s", info.TagName)
-		openUpdate(info)
 	}()
 	return false
 }
