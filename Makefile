@@ -193,11 +193,11 @@ build-plugin-windows-amd64: $(OBS_WIN_SRC)/.stamp-$(OBS_VERSION) $(OBS_WIN_SDK)/
 
 .PHONY: build-installer-windows-amd64
 build-installer-windows-amd64: build-binary-windows-amd64 build-plugin-windows-amd64
-	$(MAKENSIS) -DVERSION=$(VERSION) -DPE_VERSION=$(PE_VERSION) installer/spotify-lyrics.nsi
+	$(MAKENSIS) -DVERSION=$(VERSION) -DPE_VERSION=$(PE_VERSION) -DOBS_MIN_VERSION=$(OBS_MIN_VERSION) installer/spotify-lyrics.nsi
 
 .PHONY: package-installer-windows-amd64
 package-installer-windows-amd64:
-	$(MAKENSIS) -DVERSION=$(VERSION) -DPE_VERSION=$(PE_VERSION) installer/spotify-lyrics.nsi
+	$(MAKENSIS) -DVERSION=$(VERSION) -DPE_VERSION=$(PE_VERSION) -DOBS_MIN_VERSION=$(OBS_MIN_VERSION) installer/spotify-lyrics.nsi
 
 ###############################################################################
 # Checks

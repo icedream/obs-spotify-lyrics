@@ -67,6 +67,11 @@ and `OBS_MIN_VERSION` the oldest OBS that build supports. From OBS 32.0.2 the
 loader rejects any plugin reporting a libobs API version above the host's, so
 the SDK decides the floor: builds pin the oldest OBS you support, not the newest.
 
+`OBS_MIN_VERSION` is also passed to the Windows installer, which compares it
+against the OBS Studio it finds and refuses to install into an older one. That
+turns a mismatched plugin release into a dialog instead of a plugin that sits
+there unloaded.
+
 ```sh
 make verify-obs-version   # Makefile and both workflows must agree
 ```

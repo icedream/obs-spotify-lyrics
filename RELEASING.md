@@ -94,6 +94,10 @@ bumping `OBS_VERSION` in the Makefile ends support for the older OBS line.
 - Every release advertises its OBS window twice, both generated from the
   Makefile: an `obs-compat` comment in the release body, which the updater
   reads, and a `plugin-compat.json` asset covered by `SHA256SUMS` and cosign.
+- The Windows installer compares the OBS Studio it found against
+  `OBS_MIN_VERSION` and refuses an older one, so installing a release meant for
+  another line fails with a message instead of leaving a plugin that never
+  loads.
 - `make verify-obs-version` fails when the Makefile and the two workflows
   disagree about `OBS_VERSION`, or when `OBS_MIN_VERSION` sits above it.
 

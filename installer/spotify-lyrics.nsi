@@ -3,6 +3,7 @@
 !include "Sections.nsh"
 !include "x64.nsh"
 !include "FileFunc.nsh"
+!include "WordFunc.nsh"
 
 ; ---------------------------------------------------------------------------
 ; Defines
@@ -13,6 +14,12 @@
 
 !ifndef PE_VERSION
   !define PE_VERSION "0.0.0.0"
+!endif
+
+; Oldest OBS Studio this build is supported on, from OBS_MIN_VERSION in the
+; Makefile. The installer compares it against the OBS Studio it found.
+!ifndef OBS_MIN_VERSION
+  !define OBS_MIN_VERSION "0.0.0"
 !endif
 
 Name "Spotify Lyrics for OBS"
@@ -49,6 +56,7 @@ InstallDir "$PROGRAMFILES64\Spotify Lyrics Widget"
 Var OBSPath
 Var OBSWasRunning
 Var OBSExecutablePath
+Var OBSVersion
 Var WaitPID
 Var AutoUpdate
 
@@ -176,6 +184,20 @@ Function .onInit
 
   ; Derive OBS executable path (used for auto-relaunch after update).
   StrCpy $OBSExecutablePath "$OBSPath\bin\64bit\obs64.exe"
+
+  ; Refuse a build this OBS Studio could not load, before any file is copied and
+  ; before the auto-update signal below exists, so a refusal cannot quit OBS.
+  ${GetFileVersion} "$OBSExecutablePath" $OBSVersion
+  ${If} $OBSVersion == ""
+    MessageBox MB_OKCANCEL|MB_ICONINFORMATION "The OBS Studio version at$\n$\n$OBSPath$\n$\ncould not be read.$\n$\nClick OK to install anyway or Cancel to abort." IDOK +2
+    Abort
+  ${Else}
+    ${VersionCompare} "$OBSVersion" "${OBS_MIN_VERSION}" $R0
+    ${If} $R0 == 2
+      MessageBox MB_OK|MB_ICONSTOP "This Spotify Lyrics build requires OBS Studio ${OBS_MIN_VERSION} or newer.$\n$\nThe OBS Studio at$\n$OBSPath$\nis version $OBSVersion.$\n$\nUpdate OBS Studio, or install the plugin release built for your OBS Studio version."
+      Abort
+    ${EndIf}
+  ${EndIf}
 
   ; Restore prior install dir if the software was installed before.
   ReadRegStr $0 HKLM "Software\Spotify Lyrics Widget" "InstallDir"
