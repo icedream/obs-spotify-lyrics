@@ -18,6 +18,10 @@ PE_VERSION  ?= $(shell (git describe --always --tags --long 2>/dev/null || echo 
 	sed 's/^v//; s/-g.*$$//' | \
 	awk -F'-' '{ if ($$1 ~ /^[0-9]+\.[0-9]+\.[0-9]+$$/) printf "%s.%d", $$1, $$2; else printf "0.0.0.0" }')
 OBS_VERSION ?= 32.2.2
+# Oldest OBS this build is supported on. OBS 32.0.2 and newer refuse to load a
+# plugin built against a newer SDK, so this is the floor enforced by
+# obs_module_load; keep it at or below OBS_VERSION.
+OBS_MIN_VERSION ?= 32.0.0
 GITHUB_REPO ?= icedream/obs-spotify-lyrics
 MAKENSIS    ?= makensis
 
@@ -84,6 +88,8 @@ build-plugin-linux-amd64:
 	$(MAKE) -C plugin \
 		PLUGIN_SO="$(CURDIR)/spotify-lyrics-linux-amd64.so" \
 		VERSION="$(VERSION)" \
+		OBS_VERSION="$(OBS_VERSION)" \
+		OBS_MIN_VERSION="$(OBS_MIN_VERSION)" \
 		GITHUB_REPO="$(GITHUB_REPO)"
 
 .PHONY: build-plugin-linux-arm64
@@ -91,6 +97,8 @@ build-plugin-linux-arm64:
 	$(MAKE) -C plugin \
 		PLUGIN_SO="$(CURDIR)/spotify-lyrics-linux-arm64.so" \
 		VERSION="$(VERSION)" \
+		OBS_VERSION="$(OBS_VERSION)" \
+		OBS_MIN_VERSION="$(OBS_MIN_VERSION)" \
 		GITHUB_REPO="$(GITHUB_REPO)"
 
 # The stamp is named after OBS_VERSION: the checkout and the SDK on disk belong
@@ -140,7 +148,7 @@ build-plugin-windows-amd64: $(OBS_WIN_SRC)/.stamp-$(OBS_VERSION) $(OBS_WIN_SDK)/
 		CGO_LDFLAGS="-L$(CURDIR)/$(OBS_WIN_SDK) -lobs -lobs-frontend-api" \
 		go build -buildmode=c-shared \
 		-trimpath \
-		-ldflags "-s -w -X main.pluginVersion=$(VERSION) -X main.githubReleasesURL=https://api.github.com/repos/$(GITHUB_REPO)/releases/latest" \
+		-ldflags "-s -w -X main.pluginVersion=$(VERSION) -X main.obsSDKVersion=$(OBS_VERSION) -X main.obsMinVersion=$(OBS_MIN_VERSION) -X main.githubReleasesURL=https://api.github.com/repos/$(GITHUB_REPO)/releases" \
 		-o spotify-lyrics-windows-amd64.dll ./plugin/
 
 .PHONY: build-installer-windows-amd64
@@ -150,6 +158,26 @@ build-installer-windows-amd64: build-binary-windows-amd64 build-plugin-windows-a
 .PHONY: package-installer-windows-amd64
 package-installer-windows-amd64:
 	$(MAKENSIS) -DVERSION=$(VERSION) -DPE_VERSION=$(PE_VERSION) installer/spotify-lyrics.nsi
+
+###############################################################################
+# Checks
+
+# The OBS version is written down three times. A workflow env left behind would
+# build the plugin against a different SDK than the release advertises.
+.PHONY: verify-obs-version
+verify-obs-version:
+	@fail=0; \
+	for f in .github/workflows/ci.yml .github/workflows/release.yml; do \
+		got=$$(grep -m1 'OBS_VERSION:' $$f | tr -d '"' | sed 's/.*OBS_VERSION:[[:space:]]*//'); \
+		if [ "$$got" != "$(OBS_VERSION)" ]; then \
+			echo "$$f says OBS_VERSION $$got, Makefile says $(OBS_VERSION)" >&2; fail=1; \
+		fi; \
+	done; \
+	if [ "$$(printf '%s\n%s\n' '$(OBS_MIN_VERSION)' '$(OBS_VERSION)' | sort -V | head -1)" != "$(OBS_MIN_VERSION)" ]; then \
+		echo "OBS_MIN_VERSION $(OBS_MIN_VERSION) is above OBS_VERSION $(OBS_VERSION)" >&2; fail=1; \
+	fi; \
+	if [ $$fail -ne 0 ]; then exit 1; fi; \
+	echo "OBS_VERSION $(OBS_VERSION) with floor $(OBS_MIN_VERSION): consistent"
 
 ###############################################################################
 # Cleanup
