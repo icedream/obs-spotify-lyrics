@@ -59,9 +59,17 @@ You can also verify individual file checksums:
 
 ## Publishing a Release
 
-1. Tag the commit: `git tag -s v<VERSION>` (use a signed tag if possible)
-2. Push the tag: `git push origin v<VERSION>`
-3. The release CI workflow runs automatically and publishes the release with signed assets.
+1. Tag the commit with an annotated, signed tag whose message is the release
+   notes: `git tag -s v<VERSION>`. The release body is generated from that
+   message, so write it for users: plain points under `What's Changed`, without
+   the `by <author> in <PR>` entries or `fix(scope):` prefixes that the changelog
+   link already covers.
+2. Push the tag: `git push origin v<VERSION>`. Tag refs are protected once the
+   tag exists, so the message cannot be edited afterwards. Correct the release
+   body on the release page instead.
+3. The release CI workflow runs automatically and publishes the release with
+   signed assets. It appends the OBS support window, a `Full Changelog` compare
+   link and the `obs-compat` marker to the body.
 
 ---
 

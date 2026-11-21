@@ -302,14 +302,31 @@ jobs:
             "${GITHUB_REF_NAME}" "${{ steps.obs.outputs.obs_version }}" "${{ steps.obs.outputs.obs_min }}" \
             > pkg/compat.json
           cat pkg/compat.json
+      # The release body is the annotated tag message: drop its subject line and
+      # the PGP block that git appends to the contents of a signed tag. The
+      # changelog link points at the release published before this one, the way
+      # the hand-written releases before it did.
       - name: Generate release body
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          git fetch -q --depth=1 origin "refs/tags/${GITHUB_REF_NAME}:refs/tags/${GITHUB_REF_NAME}"
+          prev=$(gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+            --jq '[.[] | select(.tag_name != "'"$GITHUB_REF_NAME"'" and .draft == false)] | first.tag_name')
           {
-            printf 'Built against the OBS %s SDK. Requires OBS %s or newer.\n\n' \
+            git tag -l --format='%(contents)' "${GITHUB_REF_NAME}" | tail -n +2 \
+              | sed '/^-----BEGIN PGP SIGNATURE-----/,/^-----END PGP SIGNATURE-----$/d' \
+              | sed '/./,$!d'
+            printf '\nBuilt against the OBS %s SDK. Requires OBS %s or newer.\n\n' \
               "${{ steps.obs.outputs.obs_version }}" "${{ steps.obs.outputs.obs_min }}"
+            if [ -n "$prev" ] && [ "$prev" != "null" ]; then
+              printf '**Full Changelog**: https://github.com/%s/compare/%s...%s\n\n' \
+                "$GITHUB_REPOSITORY" "$prev" "$GITHUB_REF_NAME"
+            fi
             printf '<!-- obs-compat {"obs_sdk":"%s","obs_min":"%s"} -->\n' \
               "${{ steps.obs.outputs.obs_version }}" "${{ steps.obs.outputs.obs_min }}"
           } > obs-compat-body.md
+          cat obs-compat-body.md
       - name: Generate SHA256SUMS
         run: cd pkg && sha256sum * > SHA256SUMS
       - name: Install cosign
