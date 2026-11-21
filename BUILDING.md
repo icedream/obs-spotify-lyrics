@@ -75,6 +75,18 @@ CI builds the shipped plugin against `OBS_VERSION`, and against `OBS_NEWEST` in
 `ci.yml` as well when that is a higher release, to show the same artifact still
 loads on a newer OBS.
 
+The SDK is fetched per platform. Windows uses the release's `Windows-x64.zip`
+plus the headers from the OBS source tag. Linux amd64 uses the release's Ubuntu
+`.deb`: its `usr/local/include/obs` and `libobs.so` are exactly what that OBS was
+built with, and only about 2MB of the package is extracted. Both legs link with
+`-Wl,--no-undefined`, so an OBS symbol the pinned release does not export fails
+the link instead of turning into a plugin that loads and then crashes.
+
+OBS publishes no Linux package for arm64, so `build-plugin-linux-arm64` links
+against the runner's `libobs-dev`; the `build-plugin` job does the same on
+purpose, to keep the distro-package compile path covered. Locally, build against
+your own libobs headers with `make -C plugin`.
+
 ## Windows version information
 
 The server binaries, the plugin DLL and the installer embed a PE version

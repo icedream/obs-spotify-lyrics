@@ -23,3 +23,5 @@ plugin/gen_*.syso
 # Downloaded SDKs
 obs-src/
 obs-win-sdk/
+obs-linux-sdk/
+obs-linux-tmp/

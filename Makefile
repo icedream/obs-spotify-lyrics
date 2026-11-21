@@ -33,6 +33,12 @@ UPX ?=
 
 OBS_WIN_SRC := obs-src
 OBS_WIN_SDK := obs-win-sdk
+OBS_LINUX_SDK := obs-linux-sdk
+# OBS names the Ubuntu release in its Linux .deb assets, and not every OBS
+# release publishes the same set. They are tried in this order: the oldest one
+# available is the safest to link against on a GitHub runner.
+OBS_UBUNTU_RELEASES ?= 24.04 26.04 22.04
+OBS_LINUX_ARCH ?= x86_64
 
 .PHONY: all
 all: build-binary-linux-amd64 build-binary-linux-arm64 build-binary-windows-amd64 build-binary-windows-arm64 build-plugin-linux-amd64 build-plugin-linux-arm64 build-plugin-windows-amd64 build-installer-windows-amd64
@@ -84,13 +90,15 @@ build-binary-windows-arm64: cmd/lyrics/gen_resource_windows_arm64.syso
 # OBS plugin
 
 .PHONY: build-plugin-linux-amd64
-build-plugin-linux-amd64:
+build-plugin-linux-amd64: $(OBS_LINUX_SDK)/.stamp-$(OBS_VERSION)
 	$(MAKE) -C plugin \
 		PLUGIN_SO="$(CURDIR)/spotify-lyrics-linux-amd64.so" \
 		VERSION="$(VERSION)" \
 		OBS_VERSION="$(OBS_VERSION)" \
 		OBS_MIN_VERSION="$(OBS_MIN_VERSION)" \
-		GITHUB_REPO="$(GITHUB_REPO)"
+		GITHUB_REPO="$(GITHUB_REPO)" \
+		CGO_CFLAGS="-I$(CURDIR)/$(OBS_LINUX_SDK)/usr/local/include/obs" \
+		CGO_LDFLAGS="-L$(CURDIR)/$(OBS_LINUX_SDK)/usr/local/lib/$(OBS_LINUX_ARCH)-linux-gnu -lobs -lobs-frontend-api -Wl,--no-undefined"
 
 .PHONY: build-plugin-linux-arm64
 build-plugin-linux-arm64:
@@ -138,6 +146,38 @@ $(OBS_WIN_SDK)/.stamp-$(OBS_VERSION):
 		x86_64-w64-mingw32-dlltool -d obs-frontend-api.def -l libobs-frontend-api.dll.a
 	touch $@
 
+# OBS publishes an Ubuntu .deb per release that carries the libobs headers and
+# the linkable libobs.so, so the Linux plugin can be linked against the very
+# OBS release OBS_VERSION names instead of whatever libobs-dev the runner ships.
+# --no-undefined is what makes that pin mean something: a shared object links
+# fine with OBS symbols missing from its libobs unless the linker is told to
+# refuse them.
+$(OBS_LINUX_SDK)/.stamp-$(OBS_VERSION):
+	rm -rf $(OBS_LINUX_SDK) obs-linux-tmp
+	mkdir -p obs-linux-tmp $(OBS_LINUX_SDK)
+	asset=""; \
+	for ubuntu in $(OBS_UBUNTU_RELEASES); do \
+		name="OBS-Studio-$(OBS_VERSION)-Ubuntu-$$ubuntu-$(OBS_LINUX_ARCH).deb"; \
+		if curl -fsSL --retry 2 -o "obs-linux-tmp/$$name" \
+			"https://github.com/obsproject/obs-studio/releases/download/$(OBS_VERSION)/$$name"; then \
+			asset="$$name"; break; \
+		fi; \
+		rm -f "obs-linux-tmp/$$name"; \
+	done; \
+	test -n "$$asset" || { \
+		echo "OBS $(OBS_VERSION) publishes no $(OBS_LINUX_ARCH) Ubuntu .deb (tried: $(OBS_UBUNTU_RELEASES))" >&2; \
+		exit 1; \
+	}; \
+	echo "using $$asset"; \
+	data=$$(ar t "obs-linux-tmp/$$asset" | grep '^data\.tar\.'); \
+	ar x "obs-linux-tmp/$$asset" "$$data"; \
+	tar xf "$$data" -C $(OBS_LINUX_SDK) --no-wildcards-match-slash --wildcards \
+		'./usr/local/include/obs/*' \
+		'./usr/local/lib/*/libobs.so*' \
+		'./usr/local/lib/*/libobs-frontend-api.so*'; \
+	rm -rf obs-linux-tmp "$$data"; \
+	touch $@
+
 plugin/gen_resource_windows_amd64.syso &: plugin/versioninfo.json assets/icon.ico Makefile FORCE
 	go tool goversioninfo -64 -file-version "$(PE_VERSION)" -product-version "$(PE_VERSION)" -icon assets/icon.ico -o plugin/gen_resource_windows_amd64.syso plugin/versioninfo.json
 
@@ -145,7 +185,7 @@ plugin/gen_resource_windows_amd64.syso &: plugin/versioninfo.json assets/icon.ic
 build-plugin-windows-amd64: $(OBS_WIN_SRC)/.stamp-$(OBS_VERSION) $(OBS_WIN_SDK)/.stamp-$(OBS_VERSION) plugin/gen_resource_windows_amd64.syso
 	GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
 		CGO_CFLAGS="-I$(CURDIR)/$(OBS_WIN_SRC)/libobs -I$(CURDIR)/$(OBS_WIN_SRC)/frontend/api" \
-		CGO_LDFLAGS="-L$(CURDIR)/$(OBS_WIN_SDK) -lobs -lobs-frontend-api" \
+		CGO_LDFLAGS="-L$(CURDIR)/$(OBS_WIN_SDK) -lobs -lobs-frontend-api -Wl,--no-undefined" \
 		go build -buildmode=c-shared \
 		-trimpath \
 		-ldflags "-s -w -X main.pluginVersion=$(VERSION) -X main.obsSDKVersion=$(OBS_VERSION) -X main.obsMinVersion=$(OBS_MIN_VERSION) -X main.githubReleasesURL=https://api.github.com/repos/$(GITHUB_REPO)/releases" \
@@ -215,7 +255,7 @@ clean-plugin-linux-arm64:
 clean-plugin-windows-amd64:
 	rm -f spotify-lyrics-windows-amd64.dll spotify-lyrics-windows-amd64.h
 	rm -f plugin/gen_resource_windows_amd64.syso
-	rm -rf $(OBS_WIN_SRC) $(OBS_WIN_SDK) obs-win.zip obs-win-tmp
+	rm -rf $(OBS_WIN_SRC) $(OBS_WIN_SDK) $(OBS_LINUX_SDK) obs-win.zip obs-win-tmp obs-linux-tmp
 
 .PHONY: clean-installer-windows-amd64
 clean-installer-windows-amd64:

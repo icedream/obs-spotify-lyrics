@@ -13,10 +13,13 @@ GITHUB_REPO ?= icedream/obs-spotify-lyrics
 CGO_CFLAGS  := -I/usr/include/obs
 CGO_LDFLAGS := -lobs
 
-.PHONY: all
+.PHONY: all FORCE
 all: $(PLUGIN_SO)
 
-$(PLUGIN_SO): $(wildcard *.go *.c *.h) Makefile ../go.mod ../go.sum $(wildcard ../internal/*/*.go)
+# FORCE: the OBS SDK and the version strings arrive as build flags rather than
+# as files, so an artifact already on disk may well be built against an older
+# SDK or an older version. Relinking is cheap; a stale plugin is not.
+$(PLUGIN_SO): FORCE
 	CGO_CFLAGS="$(CGO_CFLAGS)" CGO_LDFLAGS="$(CGO_LDFLAGS)" \
 		go build -buildmode=c-shared \
 		-trimpath \
