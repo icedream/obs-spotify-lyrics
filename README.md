@@ -40,6 +40,17 @@ to the stream:
 If you want to use the OBS plugin's source, install a compatible **OBS Studio**
 version. On Linux, make sure your OBS does ship **with the Browser source**!
 
+Which OBS a plugin release works with depends on the SDK it was built against.
+OBS refuses to load a plugin built against a newer SDK than itself:
+
+| Plugin line | Built against | OBS range |
+| ----------- | ------------- | --------- |
+| v0.4.x      | OBS 33.0.2    | 33.0.0 and newer |
+| v0.3.x      | OBS 32.2.2    | 32.0.0 through 33.x |
+
+The built-in update check only offers releases the running OBS can load. If a
+newer release needs a newer OBS, it says so instead of installing it.
+
 Make sure you're **logged in to Spotify through one of these browsers** for
 auto-detection of the Spotify token to work:
 
