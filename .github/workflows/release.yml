@@ -295,13 +295,15 @@ jobs:
           echo "obs_version=${vars%% *}" >> "$GITHUB_OUTPUT"
           echo "obs_min=${vars#* }" >> "$GITHUB_OUTPUT"
       # The marker in the release body is what a version-aware updater reads;
-      # compat.json is the same values as a signed, machine-readable asset.
+      # plugin-compat.json is the same values as a signed, machine-readable
+      # asset. The name sorts after obs-...-setup.exe, which keeps the installer
+      # at the top of the release asset list.
       - name: Generate OBS compatibility metadata
         run: |
           printf '{\n  "plugin": "%s",\n  "obs_sdk": "%s",\n  "obs_min": "%s"\n}\n' \
             "${GITHUB_REF_NAME}" "${{ steps.obs.outputs.obs_version }}" "${{ steps.obs.outputs.obs_min }}" \
-            > pkg/compat.json
-          cat pkg/compat.json
+            > pkg/plugin-compat.json
+          cat pkg/plugin-compat.json
       # The release body is the annotated tag message: drop its subject line and
       # the PGP block that git appends to the contents of a signed tag. The
       # changelog link points at the release published before this one, the way
