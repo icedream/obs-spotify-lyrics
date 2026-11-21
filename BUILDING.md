@@ -60,6 +60,21 @@ first run:
 make build-plugin-windows-amd64  # outputs Windows 64-bit spotify-lyrics-windows-amd64.dll
 ```
 
+### The OBS SDK pin
+
+`OBS_VERSION` picks the OBS release the plugin is compiled and linked against,
+and `OBS_MIN_VERSION` the oldest OBS that build supports. From OBS 32.0.2 the
+loader rejects any plugin reporting a libobs API version above the host's, so
+the SDK decides the floor: builds pin the oldest OBS you support, not the newest.
+
+```sh
+make verify-obs-version   # Makefile and both workflows must agree
+```
+
+CI builds the shipped plugin against `OBS_VERSION`, and against `OBS_NEWEST` in
+`ci.yml` as well when that is a higher release, to show the same artifact still
+loads on a newer OBS.
+
 ## Windows version information
 
 The server binaries, the plugin DLL and the installer embed a PE version

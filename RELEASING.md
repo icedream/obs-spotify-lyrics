@@ -65,6 +65,31 @@ You can also verify individual file checksums:
 
 ---
 
+## Release lines and OBS SDK bumps
+
+A plugin build is refused by any OBS older than the SDK it was built against, so
+bumping `OBS_VERSION` in the Makefile ends support for the older OBS line.
+
+- Cut the maintenance branch from the **parent** of the bump commit the same day
+  the bump lands: `git branch maintenance/obs-32 <bump>^`. Only fixes get
+  cherry-picked onto it.
+- Keep the maintenance line's versions below the current line's so semver order
+  stays meaningful: `v0.3.x` there, `v0.4.x` and up on the current branch.
+- Publish the maintenance release that carries the version-aware updater
+  **before** the first release built against the new SDK. An older plugin asks
+  GitHub for `releases/latest`, which cannot tell OBS versions apart, and would
+  install a plugin the host then refuses to load.
+- While that transition runs `release.yml` publishes the current line with
+  `PRE_RELEASE: "true"`: a pre-release is downloadable but never auto-offered.
+  Flip it to `"false"` once enough installs are version-aware.
+- Every release advertises its OBS window twice, both generated from the
+  Makefile: an `obs-compat` comment in the release body, which the updater
+  reads, and a `compat.json` asset covered by `SHA256SUMS` and cosign.
+- `make verify-obs-version` fails when the Makefile and the two workflows
+  disagree about `OBS_VERSION`, or when `OBS_MIN_VERSION` sits above it.
+
+---
+
 ## Yanking a Release
 
 If a release must be pulled due to a critical bug, **do not simply delete it**. The in-app update checker only suggests upgrades (newer semver), so if a user is on the yanked version and it becomes unavailable without a replacement, they will never be prompted to update.
