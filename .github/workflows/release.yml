@@ -47,6 +47,12 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
+      - name: Cache the pinned OBS Linux SDK
+        if: matrix.suffix == 'linux-amd64'
+        uses: actions/cache@v6
+        with:
+          path: obs-linux-sdk
+          key: obs-linux-sdk-${{ env.OBS_VERSION }}-x86_64
       - name: Install libobs-dev
         run: sudo apt-get update -y && sudo apt-get install -y libobs-dev
       - run: make build-plugin-${{ matrix.suffix }}

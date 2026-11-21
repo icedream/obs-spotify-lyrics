@@ -44,8 +44,10 @@ jobs:
           go-version-file: 'go.mod'
       - name: Install libobs-dev
         run: sudo apt-get install -y libobs-dev
+      # Deliberately the distro libobs, not the pinned SDK: many Linux installs
+      # build against their package, and this keeps that compile path covered.
       - name: Build OBS plugin
-        run: make build-plugin-linux-amd64
+        run: make -C plugin PLUGIN_SO=spotify-lyrics.so
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -94,6 +96,12 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
+      - name: Cache the pinned OBS Linux SDK
+        if: matrix.suffix == 'linux-amd64'
+        uses: actions/cache@v6
+        with:
+          path: obs-linux-sdk
+          key: obs-linux-sdk-${{ env.OBS_VERSION }}-x86_64
       - name: Install libobs-dev
         run: sudo apt-get update -y && sudo apt-get install -y libobs-dev
       - run: make build-plugin-${{ matrix.suffix }}
