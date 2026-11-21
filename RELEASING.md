@@ -72,7 +72,8 @@ bumping `OBS_VERSION` in the Makefile ends support for the older OBS line.
 
 - Cut the maintenance branch from the **parent** of the bump commit the same day
   the bump lands: `git branch maintenance/obs-32 <bump>^`. Only fixes get
-  cherry-picked onto it.
+  cherry-picked onto it. CI also runs on pushes to `maintenance/**` and on pull
+  requests targeting it, so those branches build exactly like main.
 - Keep the maintenance line's versions below the current line's so semver order
   stays meaningful: `v0.3.x` there, `v0.4.x` and up on the current branch.
 - Publish the maintenance release that carries the version-aware updater
