@@ -93,7 +93,10 @@ build-plugin-linux-arm64:
 		VERSION="$(VERSION)" \
 		GITHUB_REPO="$(GITHUB_REPO)"
 
-$(OBS_WIN_SRC)/.stamp:
+# The stamp is named after OBS_VERSION: the checkout and the SDK on disk belong
+# to one OBS release, so a version change has to re-fetch rather than reuse.
+$(OBS_WIN_SRC)/.stamp-$(OBS_VERSION):
+	rm -rf $(OBS_WIN_SRC)
 	git clone --filter=blob:none --no-checkout --depth=1 \
 		--branch "$(OBS_VERSION)" \
 		https://github.com/obsproject/obs-studio.git $(OBS_WIN_SRC)
@@ -110,7 +113,8 @@ $(OBS_WIN_SRC)/.stamp:
 		$(OBS_WIN_SRC)/libobs/obsconfig.h.in > $(OBS_WIN_SRC)/libobs/obsconfig.h
 	touch $@
 
-$(OBS_WIN_SDK)/.stamp:
+$(OBS_WIN_SDK)/.stamp-$(OBS_VERSION):
+	rm -rf $(OBS_WIN_SDK) obs-win-tmp obs-win.zip
 	wget -q \
 		"https://github.com/obsproject/obs-studio/releases/download/$(OBS_VERSION)/OBS-Studio-$(OBS_VERSION)-Windows-x64.zip" \
 		-O obs-win.zip
@@ -130,7 +134,7 @@ plugin/gen_resource_windows_amd64.syso &: plugin/versioninfo.json assets/icon.ic
 	go tool goversioninfo -64 -file-version "$(PE_VERSION)" -product-version "$(PE_VERSION)" -icon assets/icon.ico -o plugin/gen_resource_windows_amd64.syso plugin/versioninfo.json
 
 .PHONY: build-plugin-windows-amd64
-build-plugin-windows-amd64: $(OBS_WIN_SRC)/.stamp $(OBS_WIN_SDK)/.stamp plugin/gen_resource_windows_amd64.syso
+build-plugin-windows-amd64: $(OBS_WIN_SRC)/.stamp-$(OBS_VERSION) $(OBS_WIN_SDK)/.stamp-$(OBS_VERSION) plugin/gen_resource_windows_amd64.syso
 	GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc \
 		CGO_CFLAGS="-I$(CURDIR)/$(OBS_WIN_SRC)/libobs -I$(CURDIR)/$(OBS_WIN_SRC)/frontend/api" \
 		CGO_LDFLAGS="-L$(CURDIR)/$(OBS_WIN_SDK) -lobs -lobs-frontend-api" \
